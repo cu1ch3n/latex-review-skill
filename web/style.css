@@ -166,6 +166,8 @@ kbd {
 .actions button { border: 0; background: transparent; border-radius: 8px; padding: 9px 14px; font-size: 14px; white-space: nowrap; }
 .actions button:not(:disabled):hover { background: var(--frame); }
 .actions .nav { font-size: 20px; line-height: 1; padding: 6px 12px; color: var(--muted); }
+.actions .nav kbd { vertical-align: 3px; }
+.actions kbd.lead { margin: 0 6px 0 0; }
 .actions .accept { color: var(--accept); font-weight: 600; }
 .actions .reject { color: var(--reject); font-weight: 600; }
 .actions .comment { color: var(--comment); font-weight: 600; }
