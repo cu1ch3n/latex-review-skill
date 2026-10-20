@@ -14,7 +14,7 @@ from . import SKILL_ROOT, code_version
 from .files import LockBusy, locked, read_json
 from .git import Repo
 
-START_TIMEOUT = 30
+START_TIMEOUT = 60  # A cold first start (fresh interpreter, cold disk) can be slow.
 
 
 class ServerError(RuntimeError):
@@ -166,4 +166,5 @@ def launch(root, home, port):
             tail = log.read_text(errors='replace')[-1500:]
             raise ServerError('The review server failed to start:\n' + tail)
         time.sleep(.1)
-    raise ServerError(f'The review server did not start within {START_TIMEOUT}s. Log: {log}')
+    tail = log.read_text(errors='replace')[-1500:] if log.exists() else ''
+    raise ServerError(f'The review server did not start within {START_TIMEOUT}s. Log {log}:\n{tail}')

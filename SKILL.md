@@ -44,4 +44,4 @@ Undecided changes carry over to the next round. The user can undo decisions with
 - One task per piece of work. Do not start another task from inside a worktree.
 - Keep reports short: the URL, what changed, and concrete errors.
 - For troubleshooting use `REVIEW doctor` (checks the required tools), `REVIEW status`, `REVIEW list` and `REVIEW server status`. Do not read the skill's code or state files otherwise.
-- If `start` cannot find the root document, it says so. Create `.latex-review.json` in the repository with `{"main": "path/to/main.tex"}` (README lists all settings).
+- If `start` cannot find the root document, it says so. Create `.latex-review.json` in the repository with `{"main": "path/to/main.tex"}`. [docs/reference.md](docs/reference.md) lists all settings and limits; read it only when you need them.
