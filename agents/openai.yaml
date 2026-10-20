@@ -1,0 +1,4 @@
+interface:
+  display_name: "LaTeX Review"
+  short_description: "Edit LaTeX in a worktree; the user accepts, rejects or comments on each change in a PDF diff"
+  default_prompt: "Use $latex-review-skill so I can review each of your LaTeX edits as a PDF diff before it reaches my manuscript."

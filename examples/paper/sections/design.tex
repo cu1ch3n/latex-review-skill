@@ -1,0 +1,67 @@
+\section{Design}
+\label{sec:design}
+A rope is a binary tree whose leaves hold short strings. Reading the leaves
+from left to right yields the whole document. Each node $v$ carries a
+weight $w(v)$, the number of characters in its left subtree:
+\begin{equation}
+  w(v) = |\mathrm{left}(v)|.
+  \label{eq:weight}
+\end{equation}
+Weights are the only extra information a rope needs. Every operation below
+reads them on the way down the tree and updates them on the way back up,
+so keeping them correct costs nothing beyond the nodes an operation already
+touches.
+
+\subsection{Finding a position}
+\label{sec:finding}
+To find the character at position $i$, we start at the root and compare $i$
+with the weight of the current node. If $i < w(v)$, we continue in the left
+subtree; otherwise we continue in the right subtree with $i - w(v)$. When we
+reach a leaf, $i$ is an offset into its string. A rope of depth $d$ answers
+this query in $O(d)$ steps.
+
+We call a rope balanced when its depth $d$ and its length $n$ satisfy
+\begin{equation}
+  n \ge F_{d+2},
+  \label{eq:balance}
+\end{equation}
+where $F_k$ is the $k$-th Fibonacci number~\cite{boehm}. Since $F_k$ grows
+like $\varphi^k$ with $\varphi = (1+\sqrt{5})/2$, condition~\eqref{eq:balance}
+bounds the depth of a balanced rope by $\log_\varphi n + O(1)$, so finding a
+position takes logarithmic time.
+
+\subsection{Editing}
+\label{sec:editing}
+Splitting walks down the same path as finding a position and creates new
+nodes only along that path. Concatenation creates a single new root, whose
+weight is the length of its left argument.
+In order to be able to insert a string at position $i$, we first split the rope at $i$ into two ropes, and then we concatenate the left part, the new string, and the right part.
+Neither operation copies the text stored in the leaves, which is why ropes
+stay fast for large documents.
+
+\input{figures/insertion}
+
+Each edit therefore costs a split and at most two concatenations. Over a
+sequence of $k$ edits, where the document has $n_j$ characters before the
+$j$-th edit, the total cost is
+\begin{align}
+  T(k) &= \sum_{j=1}^{k} O(\log n_j) \label{eq:cost} \\
+       &\le k \cdot O(\log n_k).
+\end{align}
+The bound assumes that the rope stays balanced between edits.
+
+Deletion works in the same way: split at both ends of the deleted range and
+concatenate the outer parts. Repeated edits can unbalance the tree, so an
+editor occasionally rebuilds it, which restores condition~\eqref{eq:balance}
+in time linear in the number of leaves.
+Rebalancing is cheap enough to run after every few hundred edits.
+
+The size of the leaves is a tuning parameter. Very short leaves waste memory
+on internal nodes, while very long leaves make every split copy more text
+than necessary. Leaves of a few hundred bytes work well in practice, because
+they fit in a handful of cache lines and keep the tree shallow even for
+documents of many megabytes.
+
+Because old nodes are never modified, a rope also gives the editor an undo
+history almost for free: each version of the document is simply a pointer
+to an older root.

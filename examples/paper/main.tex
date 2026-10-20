@@ -1,0 +1,36 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref}
+
+\title{Ropes for Text Editors:\\ A Short Example Paper}
+\author{An Example Author}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This short paper exists to demonstrate a review workflow for LaTeX documents.
+It describes ropes, a tree-shaped representation of long strings that text
+editors use to make insertions and deletions cheap. Its content is
+deliberately ordinary.
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/design}
+\input{sections/evaluation}
+
+\section{Conclusion}
+\label{sec:conclusion}
+Ropes trade a little constant overhead for edits whose cost does not grow
+with the length of the document. For an editor, which spends most of its
+time making small edits to large buffers, this is usually the right trade.
+
+\begin{thebibliography}{9}
+\bibitem{boehm} H.-J. Boehm, R. Atkinson, and M. Plass.
+  Ropes: an alternative to strings.
+  \emph{Software: Practice and Experience}, 25(12), 1995.
+\bibitem{gap} C. Finseth. \emph{The Craft of Text Editing}. Springer, 1991.
+\end{thebibliography}
+
+\end{document}

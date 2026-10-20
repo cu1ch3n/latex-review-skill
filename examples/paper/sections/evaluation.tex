@@ -1,0 +1,37 @@
+\section{Evaluation}
+\label{sec:evaluation}
+We compare the three representations on three patterns: typing at the end
+of a file, typing in the middle of a large file, and replacing every
+occurrence of a word. Table~\ref{tab:costs} summarizes the cost of a single
+edit at distance $\delta$ from the previous one in a file of $n$ characters.
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lccc}
+    & typing at the end & typing in the middle & reading \\
+    \hline
+    gap buffer  & $O(1)$       & $O(\delta)$ & $O(1)$ \\
+    piece table & $O(1)$       & $O(p)$      & $O(p)$ \\
+    rope        & $O(\log n)$ & $O(\log n)$ & $O(\log n)$ \\
+  \end{tabular}
+  \caption{Cost of one edit; $p$ is the number of pieces.}
+  \label{tab:costs}
+\end{table}
+
+When typing at the end of a file, all three representations perform well.
+The gap buffer is fastest, because the gap is already at the cursor and
+each key press writes one byte.
+
+When typing in the middle of a large file, the gap buffer must first move
+the gap, which costs time proportional to the distance from the previous
+cursor position. The piece table and the rope are unaffected by the
+distance.
+
+Replacing every occurrence of a word makes many edits spread across the
+document. The rope handles each edit in logarithmic time and keeps every
+intermediate version, while the piece table accumulates many small pieces
+that slow down later reads until it is compacted.
+
+Taken together, these patterns suggest that ropes are a good default for
+editors that open large files, and that gap buffers remain attractive for
+small files and simple editors.

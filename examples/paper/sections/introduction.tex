@@ -1,0 +1,17 @@
+\section{Introduction}
+\label{sec:introduction}
+A text editor keeps the document it is editing in memory, and every key
+press changes it. The simplest representation, a single contiguous array of
+characters, makes reading fast but makes editing slow: inserting one
+character near the start of a large file moves every character after it.
+
+Editors have answered this problem in several ways. A gap buffer keeps an
+empty region at the cursor, so that typing at the cursor is cheap while
+jumping elsewhere is not~\cite{gap}. A piece table records edits as a list
+of references into the original file and an append-only buffer. A rope,
+the subject of this paper, stores the text in the leaves of a balanced
+binary tree~\cite{boehm}.
+
+Section~\ref{sec:design} describes how a rope represents text and how the
+basic operations work. Section~\ref{sec:evaluation} compares ropes with the
+alternatives on a few common editing patterns.

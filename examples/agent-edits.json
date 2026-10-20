@@ -1,0 +1,28 @@
+{
+  "task": "tighten-design",
+  "title": "Tighten the Design section",
+  "section": "Design",
+  "edits": [
+    {"file": "paper/sections/design.tex",
+     "old": "  w(v) = |\\mathrm{left}(v)|.\n",
+     "new": "  w(v) = \\begin{cases}\n    |s| & \\text{if $v$ is a leaf holding the string $s$,} \\\\\n    |\\mathrm{left}(v)| & \\text{otherwise.}\n  \\end{cases}\n"},
+    {"file": "paper/sections/design.tex",
+     "old": "this query in $O(d)$ steps.",
+     "new": "this query with at most $d$ comparisons."},
+    {"file": "paper/sections/design.tex",
+     "old": "In order to be able to insert a string at position $i$, we first split the rope at $i$ into two ropes, and then we concatenate the left part, the new string, and the right part.",
+     "new": "To insert a string at position $i$, we split the rope at $i$ and\nconcatenate the left part, the new string, and the right part."},
+    {"file": "paper/figures/insertion.tex",
+     "old": "\\caption{Inserting text into a rope.}",
+     "new": "\\caption{Inserting text into a rope: one split, then two concatenations.}"},
+    {"file": "paper/sections/design.tex",
+     "old": "       &\\le k \\cdot O(\\log n_k).",
+     "new": "       &= O(k \\log n_k)."},
+    {"file": "paper/sections/design.tex",
+     "old": "Rebalancing is cheap enough to run after every few hundred edits.\n",
+     "new": ""},
+    {"file": "paper/sections/design.tex",
+     "old": "Because old nodes are never modified, a rope also gives the editor an undo\nhistory almost for free: each version of the document is simply a pointer\nto an older root.",
+     "new": "Because old nodes are never modified, a rope also gives the editor an\nundo history almost for free: each version of the document is simply a\npointer to an older root."}
+  ]
+}
