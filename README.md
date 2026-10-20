@@ -1,74 +1,85 @@
 # latex-review-skill
 
-Review your AI agent's LaTeX edits the way you read your paper: **as typeset PDF, change by change.**
+[![CI](https://github.com/cu1ch3n/latex-review-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/cu1ch3n/latex-review-skill/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/cu1ch3n/latex-review-skill)](LICENSE)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
+![macOS | Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
+[![Agent skill](https://img.shields.io/badge/agent%20skill-Claude%20Code%20%7C%20Codex-8a63d2)](SKILL.md)
 
-The agent edits in its own Git worktree and publishes a round. A local page shows each change in place inside its section, with the old and new text, formulas and figures marked word by word. You **accept**, **reject** or **comment** on each change. Accepted changes are merged into your working tree right away. The agent reads your comments, revises, and publishes the next round.
+Review your AI agent's LaTeX edits as typeset PDF, one change at a time.
 
-Works with [Claude Code](https://claude.com/claude-code), [Codex](https://developers.openai.com/codex) and any agent that can run shell commands and read a `SKILL.md`.
+The agent edits in its own Git worktree. You see each change in place in the PDF and accept, reject or comment on it. Accepted changes go straight into your working tree; comments go back to the agent for the next round.
 
 ![The review page: a changed equation shown before and after, inside its section](docs/review-page.png)
+
+## Features
+
+- Changes shown inside their section of the real PDF, with text, formulas and figures marked word by word
+- Accept, reject or comment per change, with undo
+- Accepting is a three-way merge into your working tree; nothing is committed for you
+- The agent works in an isolated worktree, limited to the sections you name
+- Quick rounds: only the affected `\include` chapters are recompiled
+- Works with [Claude Code](https://claude.com/claude-code), [Codex](https://developers.openai.com/codex), or any agent that can run shell commands and read a `SKILL.md`
 
 ## Quick start
 
 ```sh
-# 1. Install the skill (pick your agent)
+# Install (pick your agent)
 git clone https://github.com/cu1ch3n/latex-review-skill ~/.claude/skills/latex-review-skill   # Claude Code
 git clone https://github.com/cu1ch3n/latex-review-skill ~/.codex/skills/latex-review-skill    # Codex
 
-# 2. Check your setup (and download the PDF renderer once)
+# Check your setup; downloads the PDF renderer once
 python3 ~/.claude/skills/latex-review-skill/scripts/review.py doctor
 
-# 3. Try it on the bundled example paper, without an agent
+# Try it on the example paper, no agent needed
 python3 ~/.claude/skills/latex-review-skill/examples/demo.py
 ```
 
-Then open your own LaTeX project (it must be a Git repository) and ask your agent, for example:
+Then, in your own LaTeX project (a Git repository), ask your agent:
 
 > Use latex-review-skill to tighten Section 3, and let me review the changes.
 
-The agent starts a task, edits, publishes, and gives you the review link.
+It starts a task, edits, publishes, and sends you the review link.
 
 ### Requirements
 
 | | macOS | Linux |
 | --- | --- | --- |
-| Python 3.10+, Git | preinstalled or `brew install python git` | your package manager |
-| TeX with `latexmk` and `synctex` | `brew install --cask mactex-no-gui`, or BasicTeX plus `sudo tlmgr install latexmk` | `sudo apt install latexmk texlive-latex-recommended` |
-| [uv](https://docs.astral.sh/uv/) (installs PyMuPDF for rendering) | `brew install uv` | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| Python 3.10+, Git | preinstalled, or `brew install python git` | your package manager |
+| TeX with `latexmk` and `synctex` | `brew install --cask mactex-no-gui`, or BasicTeX and `sudo tlmgr install latexmk` | `sudo apt install latexmk texlive-latex-recommended` |
+| [uv](https://docs.astral.sh/uv/), which installs the renderer (PyMuPDF) | `brew install uv` | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 
-Node.js is not needed. Windows works through WSL.
+No Node.js needed. On Windows, use WSL.
 
 ## The example
 
-`examples/demo.py` plays the agent's part. It copies `examples/paper` (a four-page note on ropes, a string data structure) into a temporary Git repository. It then starts a task scoped to the paper's *Design* section, applies the edits in `examples/agent-edits.json`, and publishes them. The round has seven changes:
+`examples/demo.py` plays the agent. It copies `examples/paper`, a four-page note on ropes (a string data structure), into a temporary Git repository. It then starts a task on the *Design* section, applies `examples/agent-edits.json` and publishes seven changes:
 
-- a definition rewritten as a `cases` equation,
-- a change inside inline math, and a line of an `align` block,
-- a long sentence tightened, which reflows its paragraph,
-- a figure caption extended,
-- a sentence deleted,
-- a source line re-wrapped, which has no visible effect and is shown as a LaTeX diff.
+- a definition rewritten as a `cases` equation
+- edits inside inline math and in one line of an `align` block
+- a shorter sentence that reflows its paragraph
+- a longer figure caption
+- a deleted sentence
+- a re-wrapped source line, with no visible effect, shown as a LaTeX diff
 
-Review them in the browser. Afterwards the script prints the `feedback` command, which shows exactly what an agent receives, and the commands to clean up.
+It also prints the `feedback` command, which shows what an agent receives once you have reviewed, and the commands to clean up.
 
-## The review page
+## Reviewing
 
 | Key | Action |
 | --- | --- |
 | `A` / `R` / `C` | Accept, reject, or comment on the current change |
 | `J` / `K` | Next / previous change |
-| `S` | Show the LaTeX source diff of the change |
+| `S` | Show the LaTeX source diff |
 | `⌘Z` or `U` | Undo the last decision (within the current round) |
 | `M` | Send the agent a message |
 | `?` | All shortcuts |
 
-After each decision the page moves to the next undecided change. Decided changes show the version you chose. Long unchanged passages are folded. Undecided changes carry over to the next round, and a revised change shows the comment it answers.
-
-What the decisions do:
-
-- **Accept** merges the change into your working tree with a three-way merge, so your own edits are kept. Nothing is committed; you commit when you are ready.
+- **Accept** merges the change into your working tree and keeps your own edits.
 - **Reject** reverts the change in the agent's worktree.
 - **Comment** asks the agent to revise the change in the next round.
+
+After each decision the page jumps to the next undecided change. Undecided changes carry over to the next round, and a revised change shows the comment it answers.
 
 ## How it works
 
@@ -79,7 +90,7 @@ agent:  start ─▶ edit worktree ─▶ publish ──────────
 you:                        review page: Accept · Reject · Comment, per change
 ```
 
-`publish` snapshots the worktree and compiles both versions with `latexmk`. Long documents compile only the affected `\include` chapters. It then locates every change in both PDFs through SyncTeX, and renders the comparison as vector SVG. Every command prints one JSON object with a `next` field telling the agent what to do; [SKILL.md](SKILL.md) is the agent's manual.
+`publish` snapshots the worktree and compiles both versions with `latexmk`. It locates each change in both PDFs with SyncTeX and renders the comparison as vector SVG. Each command prints one JSON object whose `next` field tells the agent what to do. [SKILL.md](SKILL.md) is the agent's manual.
 
 ```sh
 review=~/.claude/skills/latex-review-skill/scripts/review.py
@@ -92,7 +103,7 @@ python3 $review server status | stop
 
 ## Configuration
 
-Usually nothing is needed. The root document is detected from `@default_files` in a `latexmkrc`, or as the only `.tex` file with `\documentclass`. The engine comes from a `% !TEX program` line, `$pdf_mode` in the latexmkrc, or the packages used (e.g. `fontspec` means XeLaTeX). To override, put a `.latex-review.json` at the repository root:
+Usually none. The root document comes from `@default_files` in a `latexmkrc`, or is the only `.tex` file with `\documentclass`. The engine comes from a `% !TEX program` line, `$pdf_mode` in the latexmkrc, or the packages used (`fontspec` means XeLaTeX). To override, add `.latex-review.json` at the repository root:
 
 | Setting | Meaning |
 | --- | --- |
@@ -108,18 +119,16 @@ Usually nothing is needed. The root document is detected from `@default_files` i
 
 ## Good to know
 
-- The in-context section view needs PDF bookmarks, which `hyperref` provides. Without them, changes are shown as standalone crops.
+- The in-context view needs PDF bookmarks, which `hyperref` provides. Without them, changes appear as standalone crops.
 - Section scopes understand `\part` … `\subsubsection`, literal `\input`/`\include`/`\subfile`, and `\label`s.
-- The first publish of a task compiles the whole document once. Later rounds reuse it.
-- Your branch, `HEAD` and staging area are never touched. Every write is journaled, so an interrupted accept or undo finishes when the server restarts.
-- State lives in `.git/latex-review/` (and `refs/latex-review/`); `finish` cleans up. The local server listens on 127.0.0.1 only, rejects cross-origin requests, and exits after 12 idle hours.
+- A task's first publish compiles the whole document once; later rounds reuse it.
+- Your branch, `HEAD` and staging area are never touched. Writes are journaled, so an interrupted accept or undo completes when the server restarts.
+- State lives in `.git/latex-review/` and `refs/latex-review/`; `finish` removes a task's files and refs.
+- The server listens on 127.0.0.1 only, rejects cross-origin requests and exits after 12 idle hours.
 
-## Development
+## Contributing
 
-```sh
-make check   # lint, Python tests (under uv, with the renderer's packages) and JavaScript tests
-make demo    # the example above
-```
+Issues and pull requests are welcome. Run `make check` before sending a change; `make demo` runs the example.
 
 ```
 latex_review/        cli · client · server              agent CLI, server discovery, HTTP API
@@ -128,6 +137,7 @@ latex_review/        cli · client · server              agent CLI, server disc
 latex_review/render/ PDF locating, glyph diffs and SVG strips (runs under uv with PyMuPDF)
 web/                 the review page: plain ES modules, no build step
 examples/            the example paper and the demo script
+tests/               Python and JavaScript tests (make check)
 ```
 
 ## License
