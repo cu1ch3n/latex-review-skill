@@ -122,12 +122,6 @@ class ReviewTests(RepoCase):
         with self.assertRaises(ValueError):
             self.decide('reject', ['c001'])
 
-    def test_decisions_wait_while_a_round_is_being_built(self):
-        self.two_changes()
-        with patch.object(self.review_app.publisher, 'busy', return_value=True):
-            with self.assertRaisesRegex(ValueError, 'publishing'):
-                self.decide('accept', ['c001'])
-
     def test_interrupted_accept_and_undo_finish_after_a_restart(self):
         self.two_changes()
         app = self.review_app

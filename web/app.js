@@ -231,12 +231,17 @@ function park() {
   if (DOCK.parentElement !== document.body) document.body.append(DOCK);
 }
 
+function jobText(job) {
+  if (job?.status !== 'queued') return `${PHASE[job?.phase] || 'Starting'}…`;
+  return job.ahead ? `Queued behind ${job.ahead} other round${job.ahead > 1 ? 's' : ''}…` : 'Queued…';
+}
+
 function renderStatus() {
   const {state, job} = view.state;
   const status = $('#status');
   let text = {editing: 'Waiting for the agent', reviewing: 'Your turn', revise: 'The agent will revise',
     done: 'All decided', build_failed: 'Last publish failed'}[state] || '';
-  if (state === 'building') text = `${PHASE[job?.phase] || 'Queued'}…`;
+  if (state === 'building') text = jobText(job);
   if (view.state.closed) text = 'Finished';
   if (!view.online) text = 'Reconnecting…';
   status.textContent = text;
@@ -251,16 +256,19 @@ function renderActions() {
   const stop = view.stops[view.current];
   const pending = pendingUnits(stop, state.decisions || {});
   const remaining = nextPending(view.stops, state.decisions || {});
-  const locked = !!view.busy || state.state === 'building' || !latest;
+  const locked = !!view.busy || !latest;
+  // A decided change offers the way on instead of buttons that do nothing.
+  const decided = !pending.length && remaining >= 0;
   for (const kind of ['accept', 'reject', 'comment']) {
     const button = bar.querySelector(`[data-command=${kind}]`);
-    button.hidden = remaining < 0;
+    button.hidden = remaining < 0 || decided;
     button.disabled = locked || !pending.length;
     button.classList.toggle('working', view.busy === kind);
   }
+  bar.querySelector('[data-command=pending]').hidden = !decided;
   bar.querySelector('[data-command=previous]').disabled = view.current <= 0;
   bar.querySelector('[data-command=next]').disabled = view.current >= view.stops.length - 1;
-  bar.querySelector('[data-command=undo]').disabled = !state.undo || !!view.busy || state.state === 'building';
+  bar.querySelector('[data-command=undo]').disabled = !state.undo || !!view.busy;
   $('#position').textContent = view.stops.length ? `${view.current + 1} / ${view.stops.length}` : '';
   const complete = $('#complete');
   complete.hidden = remaining >= 0;
@@ -279,7 +287,7 @@ function renderBanner() {
     if (job.details?.length) parts.push(el('pre', {class: 'details'}, job.details.join('\n')));
   } else if (state === 'building') {
     parts.push(el('p', {}, el('strong', {}, 'The agent is publishing a new round. '),
-      'Decisions resume when it is ready; undecided changes carry over.'));
+      'Keep reviewing: the new round includes your decisions, and undecided changes carry over.'));
   }
   if (view.round && latest && view.round !== latest) {
     parts.push(el('p', {}, `You are viewing round ${view.round}. `, el('a', {href: `?task=${encodeURIComponent(TASK)}`}, `Go to round ${latest} →`)));
@@ -314,13 +322,22 @@ function select(index, {scroll = true, smooth = true} = {}) {
   const box = article.getBoundingClientRect(), frame = paper.getBoundingClientRect();
   const space = frame.height - 40;
   const offset = box.height < space ? (space - box.height) / 2 : 12;
+  settle();
   paper.scrollTo({top: paper.scrollTop + box.top - frame.top - offset, behavior: smooth ? 'smooth' : 'auto'});
   article.focus({preventScroll: true});
 }
 
-let scrollFrame = 0, programmaticUntil = 0;
+// While the page scrolls itself to the selected change, the selection stays put until the
+// scrolling has stopped, however long a smooth scroll takes.
+let scrollFrame = 0, settling = 0;
+function settle() {
+  clearTimeout(settling);
+  settling = setTimeout(() => { settling = 0; followScroll(); }, 200);
+}
+
 function followScroll() {
-  if (scrollFrame || performance.now() < programmaticUntil || view.composer) return;
+  if (settling) return settle();
+  if (scrollFrame || view.composer) return;
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = 0;
     const frame = $('#paper').getBoundingClientRect();
@@ -334,10 +351,7 @@ function followScroll() {
 }
 
 function move(direction) {
-  const target = view.current + direction;
-  if (target < 0 || target >= view.stops.length) return;
-  programmaticUntil = performance.now() + 900;
-  select(target);
+  select(view.current + direction);
 }
 
 // Decisions
@@ -353,7 +367,6 @@ async function decide(kind, body = '') {
     if (kind === 'comment') closeComposer(true);
     const next = nextPending(view.stops, view.state.decisions, view.current);
     view.busy = null;
-    programmaticUntil = performance.now() + 900;
     if (next >= 0) select(next);
     else {
       refresh();
@@ -377,7 +390,6 @@ async function undo() {
     view.state = value;
     view.busy = null;
     const target = view.stops.findIndex(stop => stop.units.some(id => value.restored.includes(id)));
-    programmaticUntil = performance.now() + 900;
     if (target >= 0) select(target);
     toast(`Undid the ${VERB[entry.kind]} of ${value.restored.join(', ')}`);
   } catch (error) {
@@ -442,8 +454,10 @@ async function loadRound(number) {
   view.state = state;
   renderDocument();
   const saved = storage.read();
+  // Back where the reader was, unless that change is decided by now: then on to the next undecided one.
   let index = saved.round === number ? view.stops.findIndex(stop => stop.key === saved.stop) : -1;
-  if (index < 0) index = nextPending(view.stops, state.decisions);
+  const next = nextPending(view.stops, state.decisions, index);
+  if (next >= 0 && (index < 0 || !pendingUnits(view.stops[index], state.decisions).length)) index = next;
   if (index < 0) index = view.stops.length ? 0 : -1;
   view.current = index;
   refresh();
@@ -479,7 +493,7 @@ async function poll() {
 
 function renderWaiting() {
   const job = view.state.job;
-  const message = view.state.state === 'building' ? `${PHASE[job?.phase] || 'Queued'}…`
+  const message = view.state.state === 'building' ? jobText(job)
     : 'Waiting for the agent to publish its changes.';
   $('#document').replaceChildren(el('div', {class: 'waiting'}, el('div', {class: 'pulse'}), el('p', {}, message),
     el('p', {class: 'muted'}, 'This page updates by itself.')));
@@ -503,6 +517,7 @@ function command(name) {
   if (name === 'comment') return openComposer('comment');
   if (name === 'next') return move(1);
   if (name === 'previous') return move(-1);
+  if (name === 'pending') return select(nextPending(view.stops, view.state.decisions || {}, view.current));
   if (name === 'undo') return undo();
   if (name === 'source') {
     const article = articles()[view.current];
@@ -542,12 +557,15 @@ function bind() {
       }
       return;
     }
-    const map = {a: 'accept', r: 'reject', c: 'comment', j: 'next', n: 'next', arrowright: 'next',
+    const map = {a: 'accept', r: 'reject', c: 'comment', j: 'next', arrowright: 'next', n: 'pending',
       k: 'previous', p: 'previous', arrowleft: 'previous', s: 'source', u: 'undo'};
     if (map[key]) {
       event.preventDefault();
       const button = $(`#actions [data-command=${map[key]}]`);
       if (!button || !button.disabled || map[key] === 'source') command(map[key]);
+      if (button?.hidden && ['accept', 'reject', 'comment'].includes(map[key]) && !$('#actions [data-command=pending]').hidden) {
+        toast('This change is already decided. Press N for the next undecided one.');
+      }
     } else if (key === 'm' && !view.state?.closed) {
       event.preventDefault();
       openComposer('note');

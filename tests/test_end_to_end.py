@@ -38,6 +38,17 @@ class EndToEndTests(RepoCase):
         self.assertEqual(json.loads((folder / 'round.json').read_text())['units']['c002']['section'], '2.1 Details')
 
 
+    def test_a_paragraph_and_table_added_at_the_end_of_a_section(self):
+        app = self.app()
+        task = app.tasks.create('end', 'At the end', sections=['Method'])
+        self.edit(task, METHOD, 'Detail sentence 19.', 'Detail sentence 19.\n\nA new closing paragraph.\n\\begingroup\n'
+                  '\\begin{tabular}{ll}\nCase & Cost \\\\\nLeaf & 1\n\\end{tabular}\n\\endgroup')
+        app.store.execute("INSERT INTO jobs(id,task,status,created) VALUES('job','end','running',0)")
+        result = app.publisher.publish({'id': 'job', 'task': 'end'})
+        self.assertEqual((result['outcome'], result['changes']), ('published', 1))
+        blocks = [b for s in app.review.round_detail('end', 1)['sections'] for b in s['blocks'] if b['kind'] == 'change']
+        self.assertEqual([b['units'] for b in blocks], [['c001']])
+
 @unittest.skipUnless(TOOLS, 'needs latexmk, pdflatex, synctex and uv')
 class ExampleTests(unittest.TestCase):
     def test_the_bundled_example_publishes_its_seven_changes(self):

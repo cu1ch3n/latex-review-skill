@@ -15,6 +15,7 @@ user:                       review page: Accept · Reject · Comment, per change
 - `publish` snapshots the worktree and compiles the accepted text and the agent's version with `latexmk`. If the document uses `\include`, only the affected chapters are compiled. It locates each change in both PDFs with SyncTeX and renders the comparison as vector SVG. Edits that only touch comments or line breaks are shown as LaTeX diffs.
 - **Accept** merges the change into the user's working tree with a three-way merge and records it as accepted. **Reject** reverts it in the worktree. **Comment** marks it for revision. The user can undo decisions within the current round.
 - Each round shows what is still proposed and not accepted. Undecided changes carry over, and revised changes show the comment they answer.
+- The user can keep deciding while the next round is queued or compiling. A build that a decision makes outdated starts over, so the new round includes it; builds are cached, so mostly only the accepted text compiles again.
 
 ## Commands
 

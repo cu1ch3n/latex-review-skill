@@ -71,7 +71,7 @@ Round {published['round']}: {published['changes']} changes are ready for review 
 
     {published['url']}
 
-Keys: A accept · R reject · C comment · J/K next/previous · S LaTeX source · ⌘Z undo.
+Keys: A accept · R reject · C comment · J/K next/previous · N next undecided · S LaTeX source · ⌘Z undo.
 Accepted changes are written to {repo / 'paper'}; rejected ones are reverted in the worktree.
 
 See what the agent receives after you review:

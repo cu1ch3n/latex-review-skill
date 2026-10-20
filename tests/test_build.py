@@ -110,15 +110,22 @@ class PublishTests(RepoCase):
         self.task = self.publish_app.tasks.create('t', 'T', sections=['Method'])
         self.run, self.calls = compiler()
 
-    def publish(self):
+    def publish(self, during_render=None):
+        renders = []
+
         def fake_render(output, request):
+            if during_render and not renders:
+                during_render()
+            renders.append(request)
             units = {u['id']: {'visual': 'text', 'edits': [], 'pages': ['1'], 'section': '2 Method'} for u in request['units']}
             (output / 'round.json').write_text(json.dumps({'units': units, 'sections': [], 'loose': []}))
         job = {'id': 'job', 'task': 't'}
         self.publish_app.store.execute("INSERT OR REPLACE INTO jobs(id,task,status,created) VALUES('job','t','running',0)")
         with patch.object(build, 'run', self.run), patch.object(build, 'tex_version', return_value='TeX 1'), \
                 patch('latex_review.publish.render', fake_render):
-            return self.publish_app.publisher.publish(job)
+            result = self.publish_app.publisher.build_round(job)
+        self.renders = len(renders)
+        return result
 
     def test_publish_records_rounds_and_reports_new_warnings(self):
         self.assertEqual(self.publish(), {'outcome': 'empty', 'round': None, 'changes': 0})
@@ -131,6 +138,18 @@ class PublishTests(RepoCase):
         self.assertEqual(detail['units'][0]['section'], '2 Method')
         self.assertEqual(git(self.root, 'for-each-ref', '--format=%(refname)', 'refs/latex-review/t/').split(),
                          ['refs/latex-review/t/base', 'refs/latex-review/t/round-1'])
+
+    def test_decisions_made_during_a_build_are_part_of_the_round(self):
+        app = self.publish_app
+        self.edit(self.task, METHOD, 'Method sentence 4.', 'Better.')
+        self.publish()
+        self.edit(self.task, METHOD, 'Method sentence 14.', 'Revised.')
+        accept = lambda: app.review.decide('t', {'id': 'during', 'action': 'accept', 'round': 1, 'changes': ['c001']})
+        result = self.publish(during_render=accept)
+        self.assertEqual((result['round'], result['changes'], self.renders), (2, 1, 2))
+        round_ = app.review.round('t', 2)
+        self.assertEqual(round_['before'], app.tasks.get('t')['accepted'])
+        self.assertIn('Revised.', round_['units'][0]['new_text'])
 
     def test_publish_refuses_edits_outside_the_scope(self):
         self.edit(self.task, 'paper/main.tex', 'Intro sentence 3.', 'Out of scope.')
@@ -150,7 +169,7 @@ class PublishTests(RepoCase):
         self.assertEqual(str(caught.exception), 'Your edits do not compile.')
         self.assertTrue(caught.exception.details)
 
-    def test_jobs_coalesce_and_block_decisions(self):
+    def test_jobs_coalesce_and_report_their_place_in_the_queue(self):
         publisher = self.publish_app.publisher
         with patch.object(publisher, 'jobs') as queue:
             first = publisher.submit('t')
@@ -159,3 +178,4 @@ class PublishTests(RepoCase):
         self.assertEqual(queue.put.call_count, 1)
         self.assertTrue(publisher.busy('t'))
         self.assertEqual(self.publish_app.review.summary('t')['state'], 'building')
+        self.assertEqual(self.publish_app.review.page_state('t')['job']['ahead'], 0)

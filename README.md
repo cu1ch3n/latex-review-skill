@@ -28,7 +28,7 @@ In your LaTeX project (a Git repository), ask your agent:
 
 > Use latex-review-skill to tighten Section 3, and let me review the changes.
 
-It sends you a link. Press `A` to accept, `R` to reject, `C` to comment, `J`/`K` or `→`/`←` for the next or previous change, and `⌘Z` to undo.
+It sends you a link. Press `A` to accept, `R` to reject, `C` to comment, `J`/`K` or `→`/`←` for the next or previous change, `N` for the next undecided one, and `⌘Z` to undo.
 
 To see it first, ask your agent to "run the latex-review-skill demo".
 

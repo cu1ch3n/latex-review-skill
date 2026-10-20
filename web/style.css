@@ -173,6 +173,7 @@ kbd {
 .actions .accept { color: var(--accept); font-weight: 600; }
 .actions .reject { color: var(--reject); font-weight: 600; }
 .actions .comment { color: var(--comment); font-weight: 600; }
+.actions .skip { font-weight: 600; }
 .actions .undo { font-size: 13px; color: var(--muted); border-left: 1px solid var(--line); border-radius: 0 8px 8px 0; margin-left: 4px; }
 .actions .working { opacity: .55; }
 .position { min-width: 52px; text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }

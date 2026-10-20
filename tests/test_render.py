@@ -194,6 +194,21 @@ class InlineTests(unittest.TestCase):
             self.assertEqual([(p['old']['page'], p['new']['page']) for p in pairs], [(1, 1)])
             self.assertEqual(pairs[0]['after_marks'], [])
 
+    def test_text_added_after_the_last_line_of_a_section(self):
+        with pdf.open() as old, pdf.open() as new:
+            lines = ['The worklist holds the pending goals.', 'Each step removes one of them.']
+            for document, rows in [(old, lines), (new, lines + ['A new paragraph closes the section.'])]:
+                page = document.new_page(width=500, height=600)
+                for i, row in enumerate(rows):
+                    page.insert_text((40, 100 + i * 22), row)
+            a, b = text_rows(old, {0: [(50, 300)]}), text_rows(new, {0: [(50, 300)]})
+            opcodes = difflib.SequenceMatcher(None, [r['text'] for r in a], [r['text'] for r in b], autojunk=False).get_opcodes()
+            card = {'pairs': [{'old': {'page': 0, 'clip': [0, 80, 500, 150]}, 'new': {'page': 0, 'clip': [0, 130, 500, 170]},
+                               'before_marks': [], 'after_marks': [{'rect': list(new[0].search_for('closes')[0])}]}]}
+            pairs = balanced_text_pairs(card, a, b, opcodes, old, new)
+            self.assertEqual([p['old'] for p in pairs], [None])
+            self.assertIn('closes the section', new[0].get_text(clip=pdf.Rect(pairs[0]['new']['clip'])))
+
 
     def test_crops_never_cut_through_ink(self):
         with pdf.open() as document:

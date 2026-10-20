@@ -25,6 +25,10 @@ class PublishError(RuntimeError):
         self.details, self.next_step, self.log = list(details), next_step, log
 
 
+class Stale(Exception):
+    """The user decided something while the round was built, so it compares outdated texts."""
+
+
 @cache
 def render_command():
     if shutil.which('uv'):
@@ -90,7 +94,7 @@ class Publisher:
             job = self.job(identity)
             self.update(identity, status='running')
             try:
-                result, status = self.publish(job), 'done'
+                result, status = self.build_round(job), 'done'
             except PublishError as error:
                 result, status = {'error': str(error), 'details': error.details, 'next': error.next_step}, 'failed'
                 if error.log:
@@ -103,9 +107,22 @@ class Publisher:
                 if self.pending.get(job['task']) == identity:
                     del self.pending[job['task']]
 
+    def ahead(self, job):
+        """How many rounds, of any task, build before this queued one."""
+        return self.app.store.one("SELECT COUNT(*) AS n FROM jobs WHERE status IN ('queued','running') AND created<?",
+                                  job['created'])['n']
+
     def update(self, identity, **values):
         self.app.store.execute('UPDATE jobs SET ' + ','.join(k + '=?' for k in values) + ' WHERE id=?',
                                *values.values(), identity)
+
+    def build_round(self, job):
+        """Publish, and again while the user's decisions during the build change what it compares."""
+        while True:
+            try:
+                return self.publish(job)
+            except Stale:
+                continue  # Builds are cached by source tree, so mostly the accepted text compiles again.
 
     def publish(self, job):
         app, name = self.app, job['task']
@@ -120,6 +137,7 @@ class Publisher:
             task = app.tasks.get(name)
             before = task['accepted']
             latest = app.review.latest_round(name)
+            decided = app.review.last_change(name)
         violations = scope_violations(app.repo, task['base'], after, task['scope'])
         if violations:
             allowed = ([f"{s['number']} {s['title']}".strip() for s in task['scope']['sections']]
@@ -151,27 +169,31 @@ class Publisher:
         except BuildError as error:
             raise PublishError('Your edits do not compile.', error.details,
                                'Fix the LaTeX errors in the worktree, then publish again.', error.log) from None
+        if app.review.last_change(name) != decided:
+            raise Stale
         warnings = sorted(set(new['warnings']) - set(old['warnings']))
         self.update(job['id'], phase='render')
         number = (latest['number'] if latest else 0) + 1
         rounds = app.state / 'rounds' / name
         output = rounds / f'{number:03}.pending-{secrets.token_hex(4)}'
         output.mkdir(parents=True)
+        final = rounds / f'{number:03}'
+        summary = {'warnings': warnings, 'targets': targets,
+                   'builds': [b['key'] for b in (seed, old, new) if b]}
         try:
             render(output, {'task': name, 'round': number, 'main': project.main, 'source_dir': project.source_dir,
                             'figures': list(project.figures), 'old': old, 'new': new, 'units': units})
-            final = rounds / f'{number:03}'
-            shutil.rmtree(final, ignore_errors=True)
-            os.replace(output, final)
+            with app.lock:
+                if app.review.last_change(name) != decided:
+                    raise Stale
+                shutil.rmtree(final, ignore_errors=True)
+                os.replace(output, final)
+                app.store.execute('INSERT INTO rounds(task,number,before,after,units,summary,created) '
+                                  'VALUES(?,?,?,?,?,?,?)', name, number, before, after,
+                                  json.dumps(units, ensure_ascii=False), json.dumps(summary), time.time())
+                app.repo.update_ref(f'refs/latex-review/{name}/round-{number}', after)
         finally:
             shutil.rmtree(output, ignore_errors=True)
-        summary = {'warnings': warnings, 'targets': targets,
-                   'builds': [b['key'] for b in (seed, old, new) if b]}
-        with app.lock:
-            app.store.execute('INSERT INTO rounds(task,number,before,after,units,summary,created) VALUES(?,?,?,?,?,?,?)',
-                              name, number, before, after, json.dumps(units, ensure_ascii=False),
-                              json.dumps(summary), time.time())
-            app.repo.update_ref(f'refs/latex-review/{name}/round-{number}', after)
         self.prune_cache()
         visual = json.loads((final / 'round.json').read_text()).get('units', {})
         kinds = {}

@@ -65,6 +65,11 @@ class Review:
         values = list(self.decisions(name, round_).values()) if round_ else []
         return {k: values.count(k) for k in ('accepted', 'rejected', 'commented', 'pending')}
 
+    def last_change(self, name):
+        """The last decision or undo that changed the accepted text or the worktree."""
+        return self.app.store.one("SELECT MAX(id) AS id FROM messages WHERE task=? AND kind IN ('accept','reject','undo')",
+                                  name)['id']
+
     def undo_entry(self, name):
         """The last decision, if it can still be undone (only within the latest round)."""
         latest = self.latest_round(name)
@@ -120,8 +125,9 @@ class Review:
                 'decisions': self.decisions(name, round_) if round_ else {},
                 'comments': self.comments(name, number) if round_ else {},
                 'undo': {'id': undo['id'], 'kind': undo['kind'], 'changes': undo['changes']} if undo else None,
-                'job': job and {'id': job['id'], 'status': job['status'], 'phase': job['phase'],
-                                'created': job['created'], **{k: job['result'].get(k) for k in ('error', 'details', 'outcome')}}}
+                'job': job and {'id': job['id'], 'status': job['status'], 'phase': job['phase'], 'created': job['created'],
+                                'ahead': self.app.publisher.ahead(job) if job['status'] == 'queued' else 0,
+                                **{k: job['result'].get(k) for k in ('error', 'details', 'outcome')}}}
 
     def round_detail(self, name, number):
         """Everything the page needs to show one round. Immutable once published."""
@@ -215,8 +221,6 @@ class Review:
                 if previous['status'] != 'applied':
                     raise ValueError('That decision was undone or failed. Make it again.')
                 return self.page_state(name)
-            if app.publisher.busy(name):
-                raise ValueError('The agent is publishing a new round. Decisions resume when it is ready.')
             latest = self.latest_round(name)
             if not latest or data.get('round') != latest['number']:
                 raise ValueError('A newer round is available. Reload the page.')
@@ -381,8 +385,6 @@ class Review:
             action = self.undo_entry(name)
             if not action or action['id'] != identity:
                 raise ValueError('Nothing to undo here any more. Reload the page.')
-            if app.publisher.busy(name):
-                raise ValueError('The agent is publishing a new round. Undo is unavailable until it is ready.')
             if action['kind'] == 'accept' and app.tasks.get(name)['accepted'] != action['detail']['accepted_after']:
                 raise Conflict('The accepted text changed in an unexpected way; nothing was undone.')
             restores, conflicts = [], []

@@ -93,6 +93,8 @@ def line_before(rows, index, previous_page=False):
         return None
     if not previous_page:
         return index - 1
+    if index >= len(rows):
+        return None  # The region starts after the last line: no page to look before.
     k = index - 1
     while k >= 0 and rows[k]['page'] == rows[index]['page']:
         k -= 1

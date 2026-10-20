@@ -245,6 +245,9 @@ class Handler(BaseHTTPRequestHandler):
 def serve(root, port=0, idle=IDLE_TIMEOUT):
     """Run the server for one repository until it is idle for `idle` seconds or stopped."""
     root = Repo(root).toplevel()
+    # Not the skill folder it was started from: skill updates replace that folder, and a
+    # vanished working directory breaks every relative path computation.
+    os.chdir(root)
     state = Repo(root).git_dir() / 'latex-review' / 'server'
     try:
         with locked(state / 'server.lock', blocking=False):

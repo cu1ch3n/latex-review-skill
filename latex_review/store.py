@@ -3,6 +3,7 @@ from contextlib import contextmanager
 import json
 from pathlib import Path
 import sqlite3
+import threading
 
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS tasks(
@@ -81,31 +82,33 @@ def row(record):
 
 
 class Store:
+    """One connection shared by the server's threads, used by one transaction at a time,
+    so requests never have to open the database file."""
+
     def __init__(self, path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        db = sqlite3.connect(self.path, timeout=30)
-        try:
-            db.execute('PRAGMA journal_mode=WAL')
-            db.executescript(SCHEMA)
-        finally:
-            db.close()
+        self.db = sqlite3.connect(self.path, timeout=30, isolation_level=None, check_same_thread=False)
+        self.db.row_factory = sqlite3.Row
+        self.db.execute('PRAGMA journal_mode=WAL')
+        self.db.executescript(SCHEMA)
+        self.mutex = threading.RLock()
 
     @contextmanager
     def transaction(self):
         """One immediate transaction; committed when the block succeeds."""
-        db = sqlite3.connect(self.path, timeout=30, isolation_level=None)
-        db.row_factory = sqlite3.Row
-        try:
-            db.execute('BEGIN IMMEDIATE')
+        with self.mutex:
+            self.db.execute('BEGIN IMMEDIATE')
             try:
-                yield db
+                yield self.db
             except BaseException:
-                db.execute('ROLLBACK')
+                self.db.execute('ROLLBACK')
                 raise
-            db.execute('COMMIT')
-        finally:
-            db.close()
+            self.db.execute('COMMIT')
+
+    def close(self):
+        with self.mutex:
+            self.db.close()
 
     def one(self, query, *args):
         with self.transaction() as db:
