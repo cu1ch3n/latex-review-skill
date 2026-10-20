@@ -30,25 +30,27 @@
     <div id="document" class="document"><p class="empty">Loading…</p></div>
   </main>
 
-  <nav id="actions" class="actions" aria-label="Review the current change" hidden>
-    <button type="button" data-command="previous" class="nav" aria-label="Previous change" aria-keyshortcuts="K ArrowLeft" title="Previous change (K or ←)">‹<kbd>K</kbd></button>
-    <span id="position" class="position" aria-live="polite"></span>
-    <button type="button" data-command="accept" class="accept" aria-keyshortcuts="A" title="Accept: apply to your manuscript (A)">Accept<kbd>A</kbd></button>
-    <button type="button" data-command="reject" class="reject" aria-keyshortcuts="R" title="Reject: discard the change (R)">Reject<kbd>R</kbd></button>
-    <button type="button" data-command="comment" class="comment" aria-keyshortcuts="C" title="Comment: ask the agent to revise (C)">Comment<kbd>C</kbd></button>
-    <span id="complete" class="complete" hidden></span>
-    <button type="button" data-command="next" class="nav" aria-label="Next change" aria-keyshortcuts="J ArrowRight" title="Next change (J or →)"><kbd class="lead">J</kbd>›</button>
-    <button type="button" data-command="undo" class="undo" title="Undo the last decision (⌘Z)" disabled>Undo</button>
-  </nav>
+  <div id="dock" class="dock" hidden>
+    <nav id="actions" class="actions" aria-label="Review the current change" hidden>
+      <button type="button" data-command="previous" class="nav" aria-label="Previous change" aria-keyshortcuts="K ArrowLeft" title="Previous change (K or ←)">‹<kbd>K</kbd></button>
+      <span id="position" class="position" aria-live="polite"></span>
+      <button type="button" data-command="accept" class="accept" aria-keyshortcuts="A" title="Accept: apply to your manuscript (A)">Accept<kbd>A</kbd></button>
+      <button type="button" data-command="reject" class="reject" aria-keyshortcuts="R" title="Reject: discard the change (R)">Reject<kbd>R</kbd></button>
+      <button type="button" data-command="comment" class="comment" aria-keyshortcuts="C" title="Comment: ask the agent to revise (C)">Comment<kbd>C</kbd></button>
+      <span id="complete" class="complete" hidden></span>
+      <button type="button" data-command="next" class="nav" aria-label="Next change" aria-keyshortcuts="J ArrowRight" title="Next change (J or →)"><kbd class="lead">J</kbd>›</button>
+      <button type="button" data-command="undo" class="undo" title="Undo the last decision (⌘Z)" disabled>Undo</button>
+    </nav>
 
-  <form id="composer" class="composer" hidden>
-    <label for="composer-text" id="composer-label">Comment</label>
-    <textarea id="composer-text" rows="4" placeholder="What should the agent change here?"></textarea>
-    <div class="composer-row">
-      <span class="muted"><kbd>⌘</kbd><kbd>↵</kbd> send · <kbd>Esc</kbd> cancel</span>
-      <button type="submit">Send</button>
-    </div>
-  </form>
+    <form id="composer" class="composer" hidden>
+      <label for="composer-text" id="composer-label">Comment</label>
+      <textarea id="composer-text" rows="4" placeholder="What should the agent change here?"></textarea>
+      <div class="composer-row">
+        <span class="muted"><kbd>⌘</kbd><kbd>↵</kbd> send · <kbd>Esc</kbd> cancel</span>
+        <button type="submit">Send</button>
+      </div>
+    </form>
+  </div>
 
   <div id="toast" class="toast" role="alert" hidden></div>
 

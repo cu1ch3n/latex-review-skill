@@ -146,6 +146,7 @@ function openSource(article, units, toggle = true) {
 
 function renderDocument() {
   const root = $('#document');
+  park();
   root.replaceChildren();
   const {sections, loose} = view.detail;
   let index = 0;
@@ -211,6 +212,23 @@ function refresh() {
   }
   renderActions();
   renderBanner();
+  dock();
+}
+
+// The action bar and comment box sit in the current change's header, like an inline editor widget.
+const DOCK = document.getElementById('dock');
+
+function dock() {
+  const article = articles()[view.current];
+  if (!article) return park();
+  const head = article.querySelector('.change-head');
+  DOCK.hidden = false;
+  if (DOCK.parentElement !== head) head.insertBefore(DOCK, head.querySelector('.change-kind'));
+}
+
+function park() {
+  DOCK.hidden = true;
+  if (DOCK.parentElement !== document.body) document.body.append(DOCK);
 }
 
 function renderStatus() {
@@ -294,15 +312,15 @@ function select(index, {scroll = true, smooth = true} = {}) {
   const article = articles()[index];
   const paper = $('#paper');
   const box = article.getBoundingClientRect(), frame = paper.getBoundingClientRect();
-  const space = frame.height - 150;
-  const offset = box.height < space ? (space - box.height) / 2 : 24;
+  const space = frame.height - 40;
+  const offset = box.height < space ? (space - box.height) / 2 : 12;
   paper.scrollTo({top: paper.scrollTop + box.top - frame.top - offset, behavior: smooth ? 'smooth' : 'auto'});
   article.focus({preventScroll: true});
 }
 
 let scrollFrame = 0, programmaticUntil = 0;
 function followScroll() {
-  if (scrollFrame || performance.now() < programmaticUntil) return;
+  if (scrollFrame || performance.now() < programmaticUntil || view.composer) return;
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = 0;
     const frame = $('#paper').getBoundingClientRect();

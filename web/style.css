@@ -72,13 +72,13 @@ kbd {
 .ghost.round { width: 30px; height: 30px; padding: 0; border-radius: 50%; border-color: var(--line); }
 
 /* Document */
-#paper { overflow: auto; padding: 18px 16px 150px; scroll-padding: 70px 0 130px; overflow-anchor: none; outline: none; }
+#paper { overflow: auto; padding: 18px 16px 90px; scroll-padding: 70px 0 90px; overflow-anchor: none; outline: none; }
 .document { max-width: 980px; margin: 0 auto; }
 .empty { text-align: center; color: var(--muted); padding: 60px 16px; }
 .part + .part { margin-top: 30px; }
 .part-title { font-size: 13px; font-weight: 600; color: var(--muted); margin: 6px 2px 10px; letter-spacing: .01em; }
 .part-title .number { margin-right: 8px; font-variant-numeric: tabular-nums; }
-.sheet { background: var(--paper); box-shadow: var(--shadow); border-radius: 3px; padding: 10px 0; overflow: hidden; }
+.sheet { background: var(--paper); box-shadow: var(--shadow); border-radius: 3px; padding: 10px 0; }
 .context, .side { line-height: 0; }
 .document img { display: block; width: 100%; height: auto; }
 .fold {
@@ -88,7 +88,8 @@ kbd {
 }
 
 .change { position: relative; scroll-margin: 70px; outline: none; color: #1f2328; }
-.change.standalone { background: var(--paper); box-shadow: var(--shadow); border-radius: 3px; overflow: hidden; margin-bottom: 18px; }
+.change.standalone { background: var(--paper); box-shadow: var(--shadow); border-radius: 3px; margin-bottom: 26px; }
+.change.standalone .change-head { border-radius: 3px 3px 0 0; }
 .change.inline { margin: 6px 0; }
 .change-head {
   display: flex; align-items: baseline; gap: 10px; padding: 5px 12px; font-size: 12px; line-height: 1.6;
@@ -176,6 +177,20 @@ kbd {
 .position { min-width: 52px; text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .complete { padding: 0 14px; font-size: 13px; color: var(--muted); white-space: nowrap; }
 
+/* In the current change's header, which stays in view while the change is taller than the window. */
+.change.current > .change-head { position: sticky; top: 0; z-index: 4; padding-top: 3px; padding-bottom: 3px; }
+.change-head .dock { display: flex; align-items: center; flex: none; }
+.change-head .actions {
+  position: static; transform: none; max-width: none; padding: 0; gap: 0;
+  background: none; border: 0; box-shadow: none; border-radius: 0;
+}
+.change-head .actions button { padding: 3px 9px; font-size: 13px; line-height: 1.5; }
+.change-head .actions .nav { font-size: 17px; padding: 1px 7px; }
+.change-head .actions .undo { font-size: 12px; margin-left: 2px; padding: 3px 9px; }
+.change-head .position { min-width: 40px; font-size: 11.5px; }
+.change-head .complete { padding: 0 8px; font-size: 12px; }
+.change-head .composer { position: absolute; top: calc(100% + 6px); right: 8px; left: auto; bottom: auto; transform: none; width: min(380px, calc(100vw - 24px)); }
+
 .composer {
   position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 5;
   width: min(540px, calc(100vw - 24px)); padding: 12px; border-radius: 12px;
@@ -210,7 +225,10 @@ dialog form button { border: 1px solid var(--line); background: var(--frame); bo
   .track { width: 70px; }
   .actions button { padding: 9px 9px; }
   .actions kbd, #note-button { display: none; }
-  #paper { padding: 10px 6px 150px; }
+  .change-head { flex-wrap: wrap; }
+  .change-head .dock { order: 9; flex-basis: 100%; justify-content: center; }
+  .change-head .composer { right: 0; width: calc(100vw - 24px); }
+  #paper { padding: 10px 6px 90px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
