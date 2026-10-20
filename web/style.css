@@ -15,6 +15,7 @@
   --after-edge: #68ab82;
   --head: #f7f7f3;
   --shadow: 0 1px 2px rgb(0 0 0 / .06), 0 4px 18px rgb(0 0 0 / .05);
+  --paper-top: 18px;
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans", sans-serif;
   color: var(--ink);
   background: var(--frame);
@@ -72,7 +73,7 @@ kbd {
 .ghost.round { width: 30px; height: 30px; padding: 0; border-radius: 50%; border-color: var(--line); }
 
 /* Document */
-#paper { overflow: auto; padding: 18px 16px 90px; scroll-padding: 70px 0 90px; overflow-anchor: none; outline: none; }
+#paper { overflow: auto; padding: var(--paper-top) 16px 90px; scroll-padding: 70px 0 90px; overflow-anchor: none; outline: none; }
 .document { max-width: 980px; margin: 0 auto; }
 .empty { text-align: center; color: var(--muted); padding: 60px 16px; }
 .part + .part { margin-top: 30px; }
@@ -177,18 +178,20 @@ kbd {
 .position { min-width: 52px; text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .complete { padding: 0 14px; font-size: 13px; color: var(--muted); white-space: nowrap; }
 
-/* In the current change's header, which stays in view while the change is taller than the window. */
-.change.current > .change-head { position: sticky; top: 0; z-index: 4; padding-top: 3px; padding-bottom: 3px; }
-.change-head .dock { display: flex; align-items: center; flex: none; }
+/* A floating pill in the current change's header, which stays in view while the change is taller than the window. */
+.change.current > .change-head { position: sticky; top: calc(-1 * var(--paper-top)); z-index: 4; }
+.change-head .dock { display: flex; align-items: center; flex: none; margin: -9px 0; animation: float-in .18s ease-out; }
 .change-head .actions {
-  position: static; transform: none; max-width: none; padding: 0; gap: 0;
-  background: none; border: 0; box-shadow: none; border-radius: 0;
+  position: static; transform: none; max-width: none; padding: 3px; gap: 0;
+  background: var(--bar); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 6px 20px rgb(0 0 0 / .12);
 }
-.change-head .actions button { padding: 3px 9px; font-size: 13px; line-height: 1.5; }
-.change-head .actions .nav { font-size: 17px; padding: 1px 7px; }
-.change-head .actions .undo { font-size: 12px; margin-left: 2px; padding: 3px 9px; }
+.change-head .actions button { padding: 4px 10px; font-size: 13px; line-height: 1.5; border-radius: 7px; }
+.change-head .actions .nav { font-size: 17px; padding: 2px 8px; }
+.change-head .actions .undo { font-size: 12px; margin-left: 3px; padding: 4px 10px; }
 .change-head .position { min-width: 40px; font-size: 11.5px; }
 .change-head .complete { padding: 0 8px; font-size: 12px; }
+@keyframes float-in { from { opacity: 0; transform: translateY(3px) scale(.98); } }
 .change-head .composer { position: absolute; top: calc(100% + 6px); right: 8px; left: auto; bottom: auto; transform: none; width: min(380px, calc(100vw - 24px)); }
 
 .composer {
@@ -226,9 +229,10 @@ dialog form button { border: 1px solid var(--line); background: var(--frame); bo
   .actions button { padding: 9px 9px; }
   .actions kbd, #note-button { display: none; }
   .change-head { flex-wrap: wrap; }
-  .change-head .dock { order: 9; flex-basis: 100%; justify-content: center; }
+  .change-head .dock { order: 9; flex-basis: 100%; justify-content: center; margin: 4px 0 2px; }
   .change-head .composer { right: 0; width: calc(100vw - 24px); }
-  #paper { padding: 10px 6px 90px; }
+  :root { --paper-top: 10px; }
+  #paper { padding: var(--paper-top) 6px 90px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
