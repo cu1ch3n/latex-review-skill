@@ -9,6 +9,11 @@ The user reviews every edit before it reaches the manuscript. You edit in a priv
 
 `REVIEW` below means `python3 <this skill's folder>/scripts/review.py`. Every command prints one JSON object, and its `next` field says what to do. Failures print `error` (plus `details` and `next`) and exit with status 1.
 
+## First use and demo
+
+- Before the first task, run `REVIEW doctor`. If a check fails, give the user its `hint` and stop.
+- If the user wants to try the skill or see a demo, run `python3 <this skill's folder>/examples/demo.py` and give them the URL it prints. It needs no document of theirs.
+
 ## The loop
 
 1. **Start**, from the document repository:

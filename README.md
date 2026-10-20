@@ -15,11 +15,12 @@ The agent edits in its own Git worktree. You see every change in place in the PD
 ## Install
 
 ```sh
-git clone https://github.com/cu1ch3n/latex-review-skill ~/.claude/skills/latex-review-skill   # Claude Code
-git clone https://github.com/cu1ch3n/latex-review-skill ~/.codex/skills/latex-review-skill    # Codex
+npx skills add cu1ch3n/latex-review-skill -g
 ```
 
-You need Python 3.10+, Git, TeX Live or MacTeX, and [uv](https://docs.astral.sh/uv/). `python3 ~/.claude/skills/latex-review-skill/scripts/review.py doctor` checks them.
+The [skills](https://skills.sh) installer asks which agents to set it up for (Claude Code, Codex, Cursor and others) and needs Node.js 22 or later. You can also clone the repository into your agent's skills folder, e.g. `git clone https://github.com/cu1ch3n/latex-review-skill ~/.claude/skills/latex-review-skill`.
+
+The skill itself needs Python 3.10+, Git, TeX Live or MacTeX, and [uv](https://docs.astral.sh/uv/). Your agent checks for them the first time it uses it.
 
 ## Use
 
@@ -29,11 +30,7 @@ In your LaTeX project (a Git repository), ask your agent:
 
 It sends you a link. Press `A` to accept, `R` to reject, `C` to comment, `J`/`K` for the next or previous change, and `⌘Z` to undo.
 
-To try it without an agent:
-
-```sh
-python3 ~/.claude/skills/latex-review-skill/examples/demo.py
-```
+To see it first, ask your agent to "run the latex-review-skill demo".
 
 The agent's instructions are in [SKILL.md](SKILL.md); configuration and internals are in [docs/reference.md](docs/reference.md).
 
