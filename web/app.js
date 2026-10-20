@@ -524,7 +524,8 @@ function bind() {
       }
       return;
     }
-    const map = {a: 'accept', r: 'reject', c: 'comment', j: 'next', n: 'next', k: 'previous', p: 'previous', s: 'source', u: 'undo'};
+    const map = {a: 'accept', r: 'reject', c: 'comment', j: 'next', n: 'next', arrowright: 'next',
+      k: 'previous', p: 'previous', arrowleft: 'previous', s: 'source', u: 'undo'};
     if (map[key]) {
       event.preventDefault();
       const button = $(`#actions [data-command=${map[key]}]`);
