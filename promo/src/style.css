@@ -1,0 +1,88 @@
+* { box-sizing: border-box; }
+.demo { background: #f2f2ee; color: #23332e; font-family: 'Inter', sans-serif; }
+.app-window { position: absolute; left: 32px; top: 32px; width: 1136px; height: 603px; background: #fff; border: 1px solid #d8dfd5; border-radius: 13px; overflow: hidden; box-shadow: 0 7px 0 #e7ebe2; }
+.app-bar { height: 58px; background: #fafbf7; border-bottom: 1px solid #e4e7de; padding: 0 25px; display: flex; align-items: center; gap: 20px; color: #6e7a71; font-size: 18px; }
+.tiny-dots { display: flex; gap: 6px; }
+.tiny-dots i { width: 9px; height: 9px; background: #d7ded4; border-radius: 50%; }
+.file-badge { margin-left: auto; font-size: 14px; padding: 4px 10px; border: 1px solid #dce2d8; border-radius: 5px; }
+.pdf-file { color: #35473a; font-weight: 500; }
+.opening-pdf { height: 338px; background: #eeefea; overflow: hidden; }
+.opening-pdf .paper-sheet { min-height: 338px; padding-bottom: 18px; }
+.selected-proof { padding: 12px 16px; margin: 10px -16px 0; background: #eef4ee; border-left: 3px solid #74a08b; }
+.selected-proof .paper-paragraph { margin: 0; }
+.pdf-agent { position: absolute; left: 0; right: 0; bottom: 0; height: 207px; padding: 18px 30px; border-top: 1px solid #dce4d9; background: #fbfcf9; }
+.agent-context { display: flex; align-items: center; gap: 13px; height: 18px; margin-bottom: 8px; color: #839080; font-size: 12px; }
+.context-chip { border: 1px solid #d9e3d4; border-radius: 4px; padding: 3px 7px; color: #52705a; background: #f0f5ec; }
+.prompt { position: relative; font-size: 27px; line-height: 36px; height: 36px; font-weight: 500; letter-spacing: -.5px; }
+.prompt-chevron { color: #2b6e5c; margin-right: 12px; }
+.enter-key { position: absolute; right: 4px; top: 2px; display: flex; align-items: center; justify-content: center; width: 32px; height: 29px; border: 1px solid #d7e0d2; border-radius: 5px; color: #84917d; font-size: 22px; background: #fff; }
+.enter-key.pressed { color: #fff; background: #2b6e5c; border-color: #2b6e5c; transform: translateY(2px); }
+.typing-caret { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -2px; background: #2b6e5c; }
+.agent-reply { display: flex; gap: 12px; align-items: center; background: #edf4ec; margin-top: 14px; height: 60px; padding: 10px 14px; border-radius: 8px; font-size: 22px; }
+.agent-icon { color: #2b6e5c; display: flex; }
+.agent-reply strong { font-weight: 500; }
+.review-link { margin-left: auto; padding: 10px 16px; display: flex; align-items: center; gap: 13px; color: white; background: #2b6e5c; border-radius: 7px; font-weight: 500; font-size: 20px; }
+.review-title { font-size: 18px; font-weight: 600; color: #35473a; }
+.review-title span { font-size: 16px; font-weight: 400; color: #7e877e; margin-left: 15px; }
+.review-count { display: flex; align-items: center; gap: 14px; font-size: 14px; color: #81887f; margin-left: auto; }
+.progress-track { width: 85px; height: 5px; border-radius: 3px; background: #dfe5d9; overflow: hidden; }
+.progress-track i { display: block; height: 100%; background: #2b6e5c; }
+.state-pill { font-size: 14px; color: #2b6e5c; background: #e6eee5; border-radius: 14px; padding: 6px 12px; }
+.review-content { position: relative; height: 545px; }
+.change-block { border: 1.5px solid #2b6e5c; border-radius: 3px; overflow: hidden; }
+.change-meta { height: 29px; display: flex; align-items: center; gap: 15px; background: #e9efe6; color: #758173; padding: 0 15px; font-size: 13px; }
+.change-meta strong { font-weight: 600; color: #3a4b3e; }
+.change-meta > span:nth-child(2) { font-family: monospace; }
+.view-mode { margin-left: auto; font-size: 12px; font-weight: 600; letter-spacing: 1px; }
+.diff { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0 65px; }
+.diff.before { height: 74px; background: #fbeeed; border-left: 3px solid #d89b99; font-size: 32px; }
+.diff.after { height: 122px; background: #edf6ee; border-left: 3px solid #81b38a; font-size: 32px; }
+.diff .katex { font-size: 1em; }
+.diff-label { position: absolute; top: 12px; right: 14px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .8px; }
+.before .diff-label { color: #bd7777; }
+.after .diff-label { color: #6c9873; }
+.accepted-label { display: flex; align-items: center; gap: 6px; color: #2b6e5c; margin-left: auto; font-size: 13px; }
+.toolbar { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); border: 1px solid #d8dfd4; border-radius: 10px; display: flex; align-items: center; padding: 7px; background: #fff; box-shadow: 0 3px 8px #23332e0d; white-space: nowrap; }
+.position { padding: 0 21px; font-size: 16px; color: #899185; }
+.tool { display: flex; gap: 8px; align-items: center; padding: 10px 18px; font-weight: 600; font-size: 22px; border-radius: 6px; }
+.tool.accept { color: #28724c; }
+.tool.accept.selected { background: #e7f2e6; }
+.tool.reject { color: #ae5961; }
+.tool.comment { color: #476ba4; }
+.tool.comment.selected { background: #edf2fa; }
+.next { font-size: 29px; color: #8a9383; padding: 0 16px; }
+.katex { font-size: 1em; }
+kbd { display: inline-flex; justify-content: center; align-items: center; height: 22px; min-width: 22px; border: 1px solid #dfe3da; border-radius: 4px; font-family: 'Inter', sans-serif; font-size: 12px; color: #80897b; font-weight: 500; background: #f7f8f3; margin-left: 2px; }
+.cursor { position: absolute; z-index: 15; pointer-events: none; }
+.click-ring { position: absolute; left: 0; top: 0; width: 54px; height: 54px; border: 2px solid #2b6e5c; border-radius: 50%; }
+.text-change .diff { height: 100px; padding: 16px 28px; justify-content: flex-start; }
+.text-change .prose { font-size: 21px; line-height: 1.32; font-family: 'KaTeX_Main', Georgia, serif; text-align: justify; }
+.comment-composer { position: absolute; left: 50px; bottom: 12px; width: calc(100% - 100px); height: 94px; border: 1px solid #bbcbdc; border-radius: 8px; background: #f9fbfe; padding: 16px 22px; }
+.composer-title { font-size: 14px; color: #6c82a2; }
+.composer-input { font-size: 24px; margin-top: 9px; color: #3d4d62; }
+.send { display: flex; align-items: center; gap: 12px; position: absolute; right: 20px; bottom: 15px; color: white; padding: 13px 18px; border-radius: 6px; background: #466b9e; font-size: 20px; }
+.feedback-result { position: absolute; left: 50px; right: 50px; bottom: 12px; display: flex; align-items: center; padding: 25px; gap: 15px; border-radius: 8px; background: #edf2fa; color: #4e6e9a; }
+.feedback-result strong { font-size: 23px; font-weight: 500; }
+.feedback-result.revised { color: #2b6e5c; background: #edf5eb; }
+
+.paper-viewport { position: absolute; inset: 0; overflow: hidden; background: #eeefea; }
+.paper-sheet { margin: 0 36px; padding: 17px 44px 75px; min-height: 700px; background: #fff; color: #262626; font-family: 'KaTeX_Main', Georgia, serif; box-shadow: 0 0 7px #24332a0a; }
+.paper-running-head { display: flex; justify-content: space-between; padding-bottom: 6px; margin-bottom: 9px; border-bottom: 1px solid #d6d7d2; color: #71736b; font-size: 12px; letter-spacing: .2px; }
+.paper-section { font-size: 25px; line-height: 1.2; margin: 0 0 8px; font-weight: 700; }
+.paper-paragraph { font-size: 19px; line-height: 1.3; margin: 0 0 8px; text-align: justify; }
+.paper-grammar { position: relative; font-size: 20px; text-align: center; margin: 7px 0 10px; }
+.equation-number { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 16px; }
+.paper-rule-pair { display: flex; justify-content: space-around; align-items: center; gap: 20px; font-size: 19px; margin: 12px 0 13px; }
+.paper-sheet .change-block { margin: 0 -12px; }
+.paper-sheet .change-meta { font-family: 'Inter', sans-serif; font-size: 12px; }
+.rule-change .diff.before { font-size: 26px; }
+.rule-change .diff.after { height: 84px; font-size: 26px; }
+.paper-caption { font-size: 14px; text-align: center; margin: 9px 0 11px; }
+.paper-subsection { font-size: 21px; margin: 14px 0 8px; }
+.paper-reduction { font-size: 20px; position: relative; text-align: center; margin: 13px 0 15px; }
+.paper-substitution { font-size: 22px; text-align: center; margin: 11px 0 13px; }
+.paper-paragraph.theorem { margin-top: 10px; }
+.paper-paragraph.proof-intro { margin-top: 10px; }
+.proof-viewport .text-change { margin-bottom: 12px; }
+.proof-viewport .diff-label { top: 5px; right: 8px; font-size: 9px; }
+.qed { float: right; margin-left: 5px; }

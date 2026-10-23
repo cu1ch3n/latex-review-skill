@@ -2,7 +2,9 @@
 import difflib
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 from xml.etree import ElementTree
 
 from helpers import ROOT
@@ -12,9 +14,9 @@ RENDERER = ROOT / 'latex_review' / 'render'  # helpers puts the package on the i
 try:
     import pymupdf as pdf
     from PIL import Image
-    from latex_review.render.inline import (balanced_text_pairs, changed_line_bounds, context_plan, fold_context,
-                                            grouped_regions, snap, svg_strip, text_rows)
-    from latex_review.render.locate import Margins, content_lines, entry_for, position, section_intervals
+    from latex_review.render.inline import (aligned, across_pages, balanced_text_pairs, changed_line_bounds, context_plan,
+                                            fold_context, grouped_regions, snap, svg_strip, text_rows, without_moves)
+    from latex_review.render.locate import Locator, Margins, content_lines, entry_for, position, section_intervals
     from latex_review.render.pdfdiff import crop_image, pixel_difference, text_changes
     from latex_review.render.round import typeset_words
 except ImportError:
@@ -105,6 +107,16 @@ class InlineTests(unittest.TestCase):
                          [('context', 50, 100), ('change', 100, 220), ('context', 220, 400)])
         self.assertEqual(plan[1]['pairs'], [(0, 0), (1, 0)])
 
+    def test_places_of_one_change_a_few_lines_apart_form_one_block(self):
+        intervals = {0: [(50, 700)]}
+        one = {'pairs': [{'new': {'page': 0, 'clip': [0, 100, 400, 160]}}, {'new': {'page': 0, 'clip': [0, 220, 400, 260]}}]}
+        self.assertEqual([(g['top'], g['bottom']) for g in grouped_regions([(0, one)], intervals)[0]], [(100, 260)])
+        # Other changes, or the same change far apart, stay separate.
+        two = [(0, self.card(0, 100, 160)), (1, self.card(0, 220, 260))]
+        self.assertEqual(len(grouped_regions(two, intervals)[0]), 2)
+        far = {'pairs': [{'new': {'page': 0, 'clip': [0, 100, 400, 160]}}, {'new': {'page': 0, 'clip': [0, 400, 400, 460]}}]}
+        self.assertEqual(len(grouped_regions([(0, far)], intervals)[0]), 2)
+
     def test_changes_are_clipped_to_the_section(self):
         intervals = {0: [(40, 100), (200, 300)], 1: [(75, 120)]}
         cards = [(0, self.card(0, 90, 220)), (1, self.card(1, 100, 180)), (2, self.card(2, 50, 100))]
@@ -123,6 +135,33 @@ class InlineTests(unittest.TestCase):
                          [('gap', None, None, None), ('context', 0, 700, 800), ('change', 0, 800, 850),
                           ('context', 0, 850, 900), ('context', 1, 0, 50), ('gap', None, None, None)])
         self.assertEqual(fold_context(plan[:1]), plan[:1])
+
+    def test_a_change_running_on_across_a_page_break_is_one_change(self):
+        change = lambda page, top, bottom, card: {'kind': 'change', 'page': page, 'top': top, 'bottom': bottom, 'pairs': [(card, 0)]}
+        blank = lambda page, top: {'kind': 'context', 'page': page, 'top': top, 'bottom': top + 4}
+        joined = across_pages([change(0, 600, 700, 1), blank(0, 700), blank(1, 80), change(1, 84, 120, 1), change(1, 300, 320, 2)])
+        self.assertEqual([(p['kind'], p['parts']) for p in joined],
+                         [('change', [(0, 600, 700), (1, 84, 120)]), ('change', [(1, 300, 320)])])
+        # Different changes on either side of the break, or on one page, stay apart.
+        self.assertEqual(len(across_pages([change(0, 600, 700, 1), change(1, 84, 120, 2)])), 2)
+        self.assertEqual(len(across_pages([change(0, 100, 200, 1), change(0, 300, 400, 1)])), 2)
+
+    def test_lines_that_only_moved_past_a_float_are_not_edits(self):
+        old = ['a', 'b', 'moved 1', 'moved 2', 'float 1', 'float 2', 'edited']
+        new = ['a', 'b', 'float 1', 'float 2', 'moved 1', 'moved 2', 'edited, new']
+        opcodes = difflib.SequenceMatcher(None, old, new, autojunk=False).get_opcodes()
+        self.assertEqual(without_moves(opcodes, old, new), [('replace', 6, 7, 6, 7)])
+
+    def test_old_lines_pair_with_the_new_lines_at_the_same_place_in_the_text(self):
+        row = lambda page, text: {'page': page, 'text': text}
+        old = [row(0, 'one two'), row(0, 'three four'), row(1, 'five six'), row(1, 'seven eight')]
+        # The new text starts on the next page: all of the old lines go with it.
+        self.assertEqual([([r['page'] for r in o], [r['page'] for r in n]) for o, n in aligned(old, [row(1, 'one two three four five six seven eight')])],
+                         [([0, 0, 1, 1], [1])])
+        # The page break moved up by a line.
+        new = [row(0, 'one two'), row(1, 'three four'), row(1, 'five six'), row(1, 'seven eight')]
+        self.assertEqual([[r['text'] for r in o] for o, _ in aligned(old, new)],
+                         [['one two'], ['three four', 'five six', 'seven eight']])
 
     def test_text_edit_keeps_the_unchanged_heading_outside(self):
         with pdf.open() as document:
@@ -208,6 +247,41 @@ class InlineTests(unittest.TestCase):
             pairs = balanced_text_pairs(card, a, b, opcodes, old, new)
             self.assertEqual([p['old'] for p in pairs], [None])
             self.assertIn('closes the section', new[0].get_text(clip=pdf.Rect(pairs[0]['new']['clip'])))
+
+    def test_a_change_claims_only_the_lines_of_its_own_source(self):
+        with pdf.open() as old, pdf.open() as new:
+            left = ['First paragraph with an old word.', 'It ends here.', 'Middle text stays.', 'More middle text.',
+                    'Still the middle.', 'Second paragraph, old too.', 'The end.']
+            right = [row.replace('old word', 'new word').replace('old too', 'new too') for row in left]
+            for document, rows in [(old, left), (new, right)]:
+                page = document.new_page(width=500, height=600)
+                for i, row in enumerate(rows):
+                    page.insert_text((40, 100 + i * 22), row)
+            a, b = text_rows(old, {0: [(50, 300)]}), text_rows(new, {0: [(50, 300)]})
+            opcodes = difflib.SequenceMatcher(None, [r['text'] for r in a], [r['text'] for r in b], autojunk=False).get_opcodes()
+            # Marks found in the paragraphs around the first change cover the second change too.
+            marks = [{'rect': list(new[0].search_for(word)[0])} for word in ('new word', 'new too')]
+            card = {'pairs': [{'old': {'page': 0, 'clip': [0, 80, 500, 260]}, 'new': {'page': 0, 'clip': [0, 80, 500, 260]},
+                               'before_marks': [], 'after_marks': marks}],
+                    'own': {'old': [(0, 88, 100)], 'new': [(0, 88, 100)]}}
+            pairs = balanced_text_pairs(card, a, b, opcodes, old, new)
+            shown = ' '.join(new[0].get_text(clip=pdf.Rect(p['new']['clip'])) for p in pairs)
+            self.assertIn('new word', shown)
+            self.assertNotIn('new too', shown)
+
+    def test_synctex_records_from_the_output_routine_are_ignored(self):
+        def view(line):
+            boxes = {1: [(1, 300, 312, 12)],
+                     2: [(2, 59, 64, 16), (2, 200, 214, 14), (1, 330, 342, 12)],  # Shipped page 2: its head and a float.
+                     3: [(1, 0, 742, 17), (1, 350, 362, 12)]}  # A whole-page box far from its point.
+            return ''.join(f'Page:{page}\nx:1\ny:{y}\nh:1\nv:{v}\nW:400\nH:{h}\n' for page, y, v, h in boxes[line])
+        build = SimpleNamespace(margins=SimpleNamespace(header=63, footer=712), info={'pdf': 'doc.pdf'})
+        locator = Locator(build)
+        with patch('latex_review.render.locate.subprocess.run',
+                   side_effect=lambda command, **_: SimpleNamespace(stdout=view(int(command[3].split(':')[0])))):
+            self.assertEqual(locator.lookup('a.tex', 1), [(0, 300, 312)])
+            self.assertEqual(locator.lookup('a.tex', 2), [(0, 330, 342)])
+            self.assertEqual(locator.lookup('a.tex', 3), [(0, 350, 362)])
 
 
     def test_crops_never_cut_through_ink(self):

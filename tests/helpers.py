@@ -65,7 +65,7 @@ class RepoCase(unittest.TestCase):
     def tearDown(self):
         for app in self.apps:
             app.publisher.stop()
-            app.publisher.worker.join(5)
+            app.publisher.join(5)
             app.store.close()
         self.temp.cleanup()
 

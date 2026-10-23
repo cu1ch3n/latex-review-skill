@@ -1,4 +1,5 @@
 """The HTTP server and the agent CLI, talking to an in-process server with a stub compiler."""
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import json
 from pathlib import Path
 import subprocess
@@ -8,7 +9,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from helpers import ROOT, RepoCase
+from helpers import ROOT, RepoCase, fake_round
 from test_build import compiler
 
 from latex_review import build, code_version
@@ -108,6 +109,90 @@ class HttpTests(ServerCase):
 
 
 class CliTests(ServerCase):
+    def test_a_message_wakes_the_wait_without_waking_it_again_after_delivery(self):
+        task = self.server_app.tasks.create('messages')
+        worktree = Path(task['worktree'])
+        self.edit(task, 'paper/sections/method.tex', 'Method sentence 3.', 'First edit.')
+        fake_round(self.server_app, task['name'])
+        for message in ('Keep the example.', 'Pause and rethink the approach.'):
+            polled = threading.Event()
+            feedback = self.server_app.review.feedback
+
+            def observed(*args):
+                result = feedback(*args)
+                polled.set()
+                return result
+
+            with patch.object(self.server_app.review, 'feedback', observed), ThreadPoolExecutor(1) as pool:
+                waiting = pool.submit(self.cli, 'feedback', '--wait', cwd=worktree)
+                try:
+                    self.assertTrue(polled.wait(5))
+                    with self.assertRaises(TimeoutError):
+                        waiting.result(.2)
+                finally:
+                    self.server_app.review.note(task['name'], message)
+                result = waiting.result(10)
+            self.assertEqual(result['state'], 'reviewing')
+            self.assertEqual(result['counts']['pending'], 1)
+            self.assertEqual([(item['kind'], item['text']) for item in result['feedback']], [('note', message)])
+
+    def test_completed_review_and_undo_remain_available_until_explicit_cleanup(self):
+        task = self.server_app.tasks.create('keep-review')
+        worktree = Path(task['worktree'])
+        self.edit(task, 'paper/sections/method.tex', 'Method sentence 3.', 'First edit.')
+        self.cli('publish', cwd=worktree)
+        token = {'X-Review-Token': self.server_app.csrf}
+        self.http('/api/tasks/keep-review/decide',
+                  {'id': 'last-accept', 'action': 'accept', 'round': 1, 'changes': ['c001']}, token)
+        result = self.cli('feedback', '--wait', cwd=worktree)
+        self.assertEqual(result['state'], 'done')
+        self.assertTrue(worktree.is_dir())
+        self.assertFalse(json.loads(self.http('/api/tasks/keep-review/state')[2])['closed'])
+        self.assertEqual(self.http('/files/keep-review/1/s0001.svg')[0], 200)
+        undone = json.loads(self.http('/api/tasks/keep-review/undo', {'id': 'last-accept'}, token)[2])
+        self.assertEqual(undone['decisions'], {'c001': 'pending'})
+        self.assertEqual(self.read('paper/sections/method.tex'), self.method_text)
+        self.http('/api/tasks/keep-review/decide',
+                  {'action': 'accept', 'round': 1, 'changes': ['c001']}, token)
+        self.assertTrue(self.cli('finish', cwd=worktree)['finished'])
+        self.assertFalse(worktree.exists())
+        self.assertTrue(json.loads(self.http('/api/tasks/keep-review/state')[2])['closed'])
+        with self.assertRaises(HTTPError) as caught:
+            self.http('/files/keep-review/1/s0001.svg')
+        caught.exception.close()
+        self.assertEqual(caught.exception.code, 404)
+
+    def test_wait_without_a_deadline_returns_after_the_last_decision(self):
+        for first_kind, expected in [('comment', 'revise'), ('accept', 'done')]:
+            with self.subTest(state=expected):
+                name = 'wait-' + first_kind
+                task = self.server_app.tasks.create(name)
+                self.edit(task, 'paper/sections/method.tex', 'Method sentence 3.', 'First edit.')
+                self.edit(task, 'paper/sections/method.tex', 'Method sentence 17.', 'Second edit.')
+                fake_round(self.server_app, name)
+                self.server_app.review.decide(name, {'action': first_kind, 'round': 1, 'changes': ['c001'],
+                                                     'body': 'Keep the example.'})
+                polled = threading.Event()
+                feedback = self.server_app.review.feedback
+
+                def observed(*args):
+                    result = feedback(*args)
+                    polled.set()
+                    return result
+
+                with patch.object(self.server_app.review, 'feedback', observed), ThreadPoolExecutor(1) as pool:
+                    waiting = pool.submit(self.cli, 'feedback', '--wait', cwd=Path(task['worktree']))
+                    try:
+                        self.assertTrue(polled.wait(5))
+                        with self.assertRaises(TimeoutError):
+                            waiting.result(.2)  # One decided change must not end the wait.
+                    finally:
+                        self.server_app.review.decide(name, {'action': 'reject', 'round': 1, 'changes': ['c002']})
+                    result = waiting.result(10)
+                self.assertEqual(result['state'], expected)
+                self.assertEqual([item['kind'] for item in result['feedback']], [first_kind, 'reject'])
+                self.assertEqual(self.cli('feedback', cwd=Path(task['worktree']))['feedback'], [])
+
     def test_the_agent_loop(self):
         started = self.cli('start', 'polish', '--section', 'Method', '--title', 'Polish the method')
         self.assertEqual(started['url'], self.url + '/?task=polish')

@@ -98,7 +98,7 @@ class Review:
         elif counts['pending']:
             state = 'reviewing'
             hint = (f"The user is reviewing round {number} ({counts['pending']} of {sum(counts.values())} "
-                    'changes left). Wait with `feedback --wait 300`.')
+                    'changes left). Keep this turn open with `feedback --wait`, then continue automatically.')
         elif counts['commented'] or notes or not_reverted:
             state = 'revise'
             hint = ('Revise the commented changes in the worktree, then `publish`. '
@@ -106,7 +106,8 @@ class Review:
                     (' except where noted.' if not_reverted else '.'))
         else:
             state = 'done'
-            hint = 'Every change is decided. Run `finish`, or keep editing and `publish` another round.'
+            hint = ('Every change is decided. Report completion and leave the review open for inspection and undo. '
+                    'Run `finish` only when the user asks to clean up the review.')
         return {'task': name, 'title': task['title'], 'state': state, 'round': number, 'counts': counts,
                 'next': hint}
 
@@ -198,7 +199,11 @@ class Review:
                     item[key] = message['data'][key]
             items.append(item)
         cursor = rows[-1]['id'] if rows else after
-        return {**self.summary(name), 'feedback': items, 'cursor': cursor}
+        summary = self.summary(name)
+        if any(item['kind'] == 'note' for item in items):
+            summary['next'] = ('Read and act on the user\'s message in `feedback` first, even while changes are '
+                               'pending or a round is building. Then follow the task state.')
+        return {**summary, 'feedback': items, 'cursor': cursor}
 
     # Writing
 

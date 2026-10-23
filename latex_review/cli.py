@@ -23,9 +23,9 @@ from .tasks import task_marker
 USAGE = '''First time: review.py doctor
 Typical loop (run from the document repository, then from the task worktree):
   review.py start polish-intro --section 1.2 --title "Polish the introduction"
-  review.py publish              # build and show the PDF diff; prints the review URL
-  review.py feedback --wait 300  # wait until the user has reviewed the round
-  review.py finish               # remove the worktree once everything is decided'''
+  review.py publish              # build the PDF diff; share the returned URL with the user
+  review.py feedback --wait      # wait until the user has reviewed the round, then continue
+  review.py finish               # optional cleanup when requested; ends review and undo'''
 
 
 class Failure(RuntimeError):
@@ -93,7 +93,7 @@ def doctor():
               + (' (or brew install uv)' if mac else ''))
     ok = all(c['ok'] for c in checks)
     return {'ok': ok, 'checks': checks,
-            'next': f'Ready. Try the example: python3 {SKILL_ROOT / "examples" / "demo.py"}' if ok
+            'next': f'Ready. To try the example: python3 {SKILL_ROOT / "examples" / "demo.py"} --no-open' if ok
             else 'Fix the failed checks above, then run doctor again.'}
 
 
@@ -137,9 +137,9 @@ def publish(client, root, task, args):
              'viewing': info['viewing']}
     if result['outcome'] == 'published':
         value.update(kinds=result['kinds'], warnings=result['warnings'])
-        value['next'] = (f"Ask the user to review round {result['round']} at {info['url']}"
+        value['next'] = (f"Share round {result['round']} with the user: {info['url']}"
                          + (' (the page is open and updates by itself)' if info['viewing'] else '')
-                         + ', then run `feedback --wait 300`.')
+                         + '. Keep this turn open and run `feedback --wait`; continue automatically when it returns.')
         if args.open and not info['viewing']:
             webbrowser.open(info['url'])
     elif result['outcome'] == 'unchanged':
@@ -153,7 +153,7 @@ def publish(client, root, task, args):
 def feedback(client, root, task, args):
     path = cursor_file(root, task)
     after = 0 if args.all else int((path.read_text().strip() if path.exists() else '') or 0)
-    deadline = time.monotonic() + args.wait
+    deadline = None if args.wait is None else time.monotonic() + args.wait
     while True:
         try:
             value = client.get(f'/api/tasks/{quote(task)}/feedback?after={after}')
@@ -161,10 +161,12 @@ def feedback(client, root, task, args):
             time.sleep(2)
             client = connect(root)
             continue
-        if value['state'] not in ('reviewing', 'building') or time.monotonic() >= deadline:
+        timed_out = deadline is not None and time.monotonic() >= deadline
+        has_note = any(item['kind'] == 'note' for item in value['feedback'])
+        if has_note or value['state'] not in ('reviewing', 'building') or timed_out:
             break
-        time.sleep(min(2, max(.1, deadline - time.monotonic())))
-    if value['state'] in ('reviewing', 'building') and args.wait:
+        time.sleep(2 if deadline is None else min(2, max(.1, deadline - time.monotonic())))
+    if value['state'] in ('reviewing', 'building') and args.wait and timed_out:
         value['waited'] = args.wait
     info = client.get(f'/api/tasks/{quote(task)}')
     value['url'] = info['url']
@@ -184,13 +186,14 @@ def main(argv=None):
     command.add_argument('--section', action='append', default=[], help='Section number, exact title or label')
     command.add_argument('--file', action='append', default=[], help='Repository-relative file or folder')
     command.add_argument('--title', help='Short description shown on the review page')
-    command.add_argument('--open', action='store_true', help='Open the review page in a browser')
+    command.add_argument('--open', action='store_true', help='Open the page in the user\'s browser when requested')
     command = commands.add_parser('publish', help='Build the PDF diff of the worktree for review')
     command.add_argument('--no-wait', action='store_true', help='Return as soon as the build is queued')
     command.add_argument('--timeout', type=float, default=900, help='Seconds to wait for the build')
-    command.add_argument('--open', action='store_true', help='Open the review page unless it is already open')
+    command.add_argument('--open', action='store_true', help='Open the page for the user when requested, unless already open')
     command = commands.add_parser('feedback', help='New decisions and comments from the user')
-    command.add_argument('--wait', type=float, default=0, help='Wait up to this many seconds for the review')
+    command.add_argument('--wait', type=float, nargs='?', const=None, default=0, metavar='SECONDS',
+                         help='Wait for review completion or a message to the agent; optionally limit to SECONDS')
     command.add_argument('--all', action='store_true', help='Repeat all feedback instead of only new items')
     commands.add_parser('status', help='Where the task stands and what to do next')
     command = commands.add_parser('finish', help='Remove the task worktree after the review')
@@ -231,7 +234,7 @@ def main(argv=None):
         if args.command == 'publish':
             return emit(publish(client, root, task, args))
         if args.command == 'feedback':
-            if not 0 <= args.wait <= 3600:
+            if args.wait is not None and not 0 <= args.wait <= 3600:
                 raise Failure({'error': '--wait must be between 0 and 3600 seconds.'})
             return feedback(client, root, task, args)
         if args.command == 'status':

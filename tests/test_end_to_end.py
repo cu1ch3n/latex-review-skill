@@ -29,7 +29,7 @@ class EndToEndTests(RepoCase):
         self.assertEqual([b['units'] for b in blocks], [['c001'], ['c002']])
         folder = app.state / 'rounds' / 'e2e' / '001'
         for block in blocks:
-            self.assertTrue((folder / block['after']['src']).is_file())
+            self.assertTrue(all((folder / strip['src']).is_file() for strip in block['after']))
             self.assertTrue(block['before'])
         state = app.review.decide('e2e', {'action': 'accept', 'round': 1, 'changes': ['c001']})
         self.assertEqual(state['decisions'], {'c001': 'accepted', 'c002': 'pending'})

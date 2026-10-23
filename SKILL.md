@@ -1,6 +1,6 @@
 ---
 name: latex-review-skill
-description: Use when editing a LaTeX document whose edits the user should approve. You edit in an isolated Git worktree; a local page shows each change as a PDF diff in context, where the user accepts, rejects or comments on it. Accepted changes are merged into their manuscript. Not needed for discussion-only work.
+description: Use when editing a LaTeX document whose edits the user should approve. You edit in an isolated Git worktree and use the CLI to publish changes and receive feedback; the user reviews PDF diffs in a local page. Accepted changes are merged into their manuscript. Not needed for discussion-only work.
 ---
 
 # LaTeX review
@@ -9,10 +9,16 @@ The user reviews every edit before it reaches the manuscript. You edit in a priv
 
 `REVIEW` below means `python3 <this skill's folder>/scripts/review.py`. Every command prints one JSON object, and its `next` field says what to do. Failures print `error` (plus `details` and `next`) and exit with status 1.
 
+## Agent interface
+
+Use the CLI for the manuscript review workflow. The returned `url`, review page and task overview are for the user. Do not use computer use or browser automation (including Playwright, screenshots or DOM inspection) to verify publication, monitor progress or read feedback. A successful `publish` response confirms publication; use `status` for task state, `feedback` for decisions and comments, and `list` for the task overview. Share the URL and continue through the CLI.
+
+Browser interaction is appropriate when the user explicitly requests it or the task is to develop or debug the review web interface itself. If the user only asks to open a review page, use `start --open` or `publish --open`; no UI automation is needed. Leave review decisions to the user unless they explicitly delegate them.
+
 ## First use and demo
 
 - Before the first task, run `REVIEW doctor`. If a check fails, give the user its `hint` and stop.
-- If the user wants to try the skill or see a demo, run `python3 <this skill's folder>/examples/demo.py` and give them the URL it prints. It needs no document of theirs.
+- If the user wants to try the skill or see a demo, run `python3 <this skill's folder>/examples/demo.py --no-open` and give them the URL it prints. Omit `--no-open` if they ask to open it. It needs no document of theirs.
 
 ## The loop
 
@@ -27,13 +33,15 @@ The user reviews every edit before it reaches the manuscript. You edit in a priv
 3. **Publish**, from the worktree: `REVIEW publish`. It waits for the build (up to 15 minutes).
    - Success gives `round`, `changes` and `warnings`. The warnings are LaTeX warnings your edits introduced; fix them unless they are intended.
    - A compile error or an edit outside the scope returns `error` and `details`. Fix it and publish again.
-4. **Wait for the review**: `REVIEW feedback --wait 300`. It returns once the user has decided every change, or after 300 s with `state: "reviewing"`. Set your command timeout above the wait. If the user is not reviewing right now, finish your turn with the URL and run `feedback` when they return.
-5. **Act on `state`**:
-   - `revise`: handle every `comment` item. Each has `changes[]` with `file`, `lines` and `old`/`new` text, plus the user's `text`. Edit the worktree, then publish again. Rejected changes are already reverted in your worktree, so do not re-propose them unless a comment asks. An item with `not_reverted` lists files you must revert by hand. Also follow any `note` items.
-   - `reviewing`: the user is still deciding. Wait again.
-   - `done`: every change is decided. Ask whether anything else is needed; otherwise run `REVIEW finish`.
+4. **Wait for the review**: share the URL in a progress message, then run `REVIEW feedback --wait`. It waits without a time limit and returns once the user has decided every change, sends a message via **Message the agent**, or a build fails. Keep the agent turn open so you can act on the result automatically; the user does not need to send a separate "I'm done" message.
+   - If the command tool returns a running session, wait on that session. Use a long-lived command session when available. If the tool requires a bounded command, use `REVIEW feedback --wait 60` and handle each response as below before waiting again.
+   - A timeout or `viewing: false` does not mean the user is done or wants to pause. Stop waiting if the user asks to pause, or report an actual tool/session limit if it prevents waiting. This workflow relies on the active agent turn; a detached command cannot wake an ended conversation.
+5. **Read any `note` items first**, regardless of `state`: they are direct messages from the user and may ask you to pause or change direction. Then act on `state`:
+   - `revise`: handle every `comment` item, including comments received in earlier feedback responses for this round. Each has `changes[]` with `file`, `lines` and `old`/`new` text, plus the user's `text`. Edit the worktree, then publish again. Rejected changes are already reverted in your worktree, so do not re-propose them unless a comment asks. An item with `not_reverted` lists files you must revert by hand.
+   - `reviewing` or `building`: keep waiting with `REVIEW feedback --wait`.
+   - `done`: report completion with the review URL. Leave the task open so the user can inspect the result and undo decisions.
    - `build_failed`: fix the reported error and publish again.
-6. **Finish**: `REVIEW finish` removes the worktree. Accepted changes are already in the user's working tree, uncommitted.
+6. **Clean up when requested**: run `REVIEW finish` when the user asks to close or clean up the review. It removes the worktree and PDF review artifacts and ends undo. Accepted changes remain in the user's working tree, uncommitted.
 
 ## What the user's decisions mean
 

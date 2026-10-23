@@ -173,7 +173,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(WEB / STATIC[path])
         if path == '/api/info':
             return {'root': str(app.root), 'version': code_version(), 'pid': os.getpid(),
-                    'busy': app.publisher.busy(), 'csrf': app.csrf}
+                    'busy': app.publisher.busy(), 'build_workers': len(app.publisher.workers), 'csrf': app.csrf}
         if path == '/api/tasks':
             return {'tasks': app.tasks_overview(), 'csrf': app.csrf}
         parts = path.strip('/').split('/')

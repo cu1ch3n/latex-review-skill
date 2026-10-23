@@ -1,7 +1,6 @@
 """Show changes inside their section: unchanged context strips with before/after strips in place."""
 import copy
 import difflib
-from itertools import zip_longest
 
 import pymupdf as pdf
 
@@ -10,6 +9,7 @@ from .pdfdiff import text_changes
 
 MARGIN = 360  # Points of unchanged context kept around each change; the rest is folded.
 RUN_GAP = 3    # Unchanged PDF lines that may separate edits shown as one region.
+JOIN_GAP = 90  # Points of unchanged text that may separate two places of one change shown as one block.
 COLORS = {'old': (.78, .16, .22), 'new': (.12, .55, .32)}
 
 
@@ -31,7 +31,14 @@ def balanced_text_pairs(card, old_rows, new_rows, opcodes, old_document, documen
     Cropping highlighted lines independently can drop unchanged words that
     wrapped onto another line; equal lines delimit the replaced region.
     """
+    own = card.get('own') or {}
+
     def touches(rows, side):
+        if own.get('old') or own.get('new'):
+            # Lines typeset from the change's own source lines: marks found in the paragraphs
+            # around them may belong to a neighbouring change.
+            return any(row['page'] == page and row['rect'].y0 < bottom and row['rect'].y1 > top
+                       for row in rows for page, top, bottom in own.get(side, []))
         for pair in card['pairs']:
             position = pair.get(side)
             if not position:
@@ -75,15 +82,83 @@ def balanced_text_pairs(card, old_rows, new_rows, opcodes, old_document, documen
                 left += positions(old_rows[a:a + 1] if a is not None else [], old_document)
                 right += positions(new_rows[b:b + 1] if b is not None else [], document)
                 break
-        old, new = positions(old_rows[i:j], old_document), positions(new_rows[x:y], document)
-        links += zip_longest(range(len(left), len(left) + len(old)), range(len(right), len(right) + len(new)))
-        left += old
-        right += new
+        if x == y:
+            old = positions(old_rows[i:j], old_document)
+            links += [(k, None) for k in range(len(left), len(left) + len(old))]
+            left += old
+            continue
+        for old, new in aligned(old_rows[i:j], new_rows[x:y]):
+            right += positions(new, document)
+            olds = positions(old, old_document)
+            links += [(k, len(right) - 1) for k in range(len(left), len(left) + len(olds))] or [(None, len(right) - 1)]
+            left += olds
     # One comparison over all regions keeps words hyphenated across a region boundary intact.
     marks = text_changes(old_document, document, left, right)
-    return [{'old': None if a is None else left[a], 'new': None if b is None else right[b],
-             'before_marks': [] if a is None else marks['old_marks'].get(a, []),
-             'after_marks': [] if b is None else marks['new_marks'].get(b, [])} for a, b in links]
+    shown = set()
+    pairs = []
+    for a, b in links:
+        pairs.append({'old': None if a is None else left[a], 'new': None if b is None else right[b],
+                      'before_marks': [] if a is None else marks['old_marks'].get(a, []),
+                      'after_marks': [] if b is None or b in shown else marks['new_marks'].get(b, [])})
+        shown.add(b)
+    return pairs
+
+
+def aligned(old, new):
+    """The new lines of a region by page, each with the old lines at the same place in the text.
+
+    The text may break onto the next page earlier or later than before, so the old lines are
+    matched by their position in the region's text, not by page.
+    """
+    def offsets(rows):
+        total, result = 0, []
+        for row in rows:
+            result.append((total, total + len(row['text'])))
+            total += len(row['text']) + 1
+        return result, max(total, 1)
+
+    pieces = []
+    for row, (start, end) in zip(new, offsets(new)[0]):
+        if pieces and pieces[-1]['page'] == row['page']:
+            pieces[-1]['rows'].append(row)
+            pieces[-1]['end'] = end
+        else:
+            pieces.append({'page': row['page'], 'rows': [row], 'start': start, 'end': end, 'old': []})
+    spans, old_total = offsets(old)
+    new_total = offsets(new)[1]
+    for row, (start, end) in zip(old, spans):
+        middle = (start + end) / 2 / old_total * new_total
+        piece = next((p for p in pieces if middle < p['end'] + 1), pieces[-1])
+        piece['old'].append(row)
+    return [(piece['old'], piece['rows']) for piece in pieces]
+
+
+def without_moves(opcodes, old_texts, new_texts, minimum=2):
+    """Leave out lines that only moved, e.g. past a float that grew or shrank: a run of lines
+    deleted in one place and inserted unchanged in another is not an edit."""
+    ops = [list(op) for op in opcodes if op[0] != 'equal']
+    for a in ops:
+        for b in ops:
+            if a is b:
+                continue
+            moved = old_texts[b[1]:b[2]]  # b's deleted lines at the start or end of a's inserted ones
+            if len(moved) >= minimum and a[4] - a[3] >= len(moved):
+                if new_texts[a[3]:a[3] + len(moved)] == moved:
+                    a[3] += len(moved)
+                    b[2] = b[1]
+                elif new_texts[a[4] - len(moved):a[4]] == moved:
+                    a[4] -= len(moved)
+                    b[2] = b[1]
+            moved = new_texts[b[3]:b[4]]  # b's inserted lines at the start or end of a's deleted ones
+            if len(moved) >= minimum and a[2] - a[1] >= len(moved):
+                if old_texts[a[1]:a[1] + len(moved)] == moved:
+                    a[1] += len(moved)
+                    b[4] = b[3]
+                elif old_texts[a[2] - len(moved):a[2]] == moved:
+                    a[2] -= len(moved)
+                    b[4] = b[3]
+    return [('replace' if i < j and x < y else 'delete' if i < j else 'insert', i, j, x, y)
+            for _, i, j, x, y in ops if i < j or x < y]
 
 
 def line_before(rows, index, previous_page=False):
@@ -144,7 +219,8 @@ def snap(document, page_number, top, bottom, limit=10):
 
 
 def grouped_regions(cards, intervals, snapped=None):
-    """Merge overlapping change regions so no part of the new text appears twice."""
+    """Merge overlapping change regions so no part of the new text appears twice, and the places of
+    one change that only a few unchanged lines separate, so it is decided in one block."""
     result = {}
     for index, card in cards:
         for pair_index, pair in enumerate(card['pairs']):
@@ -161,7 +237,8 @@ def grouped_regions(cards, intervals, snapped=None):
     for page, regions in result.items():
         merged = []
         for region in sorted(regions, key=lambda r: r['top']):
-            if merged and region['top'] <= merged[-1]['bottom']:
+            shared = merged and {i for i, _ in region['pairs']} & {i for i, _ in merged[-1]['pairs']}
+            if merged and (region['top'] <= merged[-1]['bottom'] or shared and region['top'] - merged[-1]['bottom'] <= JOIN_GAP):
                 merged[-1]['bottom'] = max(merged[-1]['bottom'], region['bottom'])
                 merged[-1]['pairs'].extend(region['pairs'])
             else:
@@ -187,6 +264,27 @@ def context_plan(intervals, groups):
             if cursor < end:
                 plan.append({'kind': 'context', 'page': page, 'top': cursor, 'bottom': end})
     return plan
+
+
+def across_pages(plan):
+    """Join the pieces of a change that runs on across a page break into one change with several
+    parts: deciding on one piece would decide on the other too."""
+    result = []
+    for piece in plan:
+        if piece['kind'] == 'change':
+            k = len(result)
+            while k and result[k - 1]['kind'] == 'context' and result[k - 1]['bottom'] - result[k - 1]['top'] < 12:
+                k -= 1  # Blank space at the foot or head of a page.
+            previous = result[k - 1] if k else None
+            if (previous and previous['kind'] == 'change' and previous['parts'][-1][0] != piece['page']
+                    and {i for i, _ in previous['pairs']} & {i for i, _ in piece['pairs']}):
+                del result[k:]
+                previous['parts'].append((piece['page'], piece['top'], piece['bottom']))
+                previous['pairs'] = previous['pairs'] + piece['pairs']
+                continue
+            piece = {**piece, 'parts': [(piece['page'], piece['top'], piece['bottom'])]}
+        result.append(piece)
+    return result
 
 
 def fold_context(plan, margin=MARGIN):
@@ -279,8 +377,9 @@ def render_section(old, new, node, cards, strips, figure_files):
             try:
                 old_intervals, _ = section_intervals(old.document, old_node, old.outline, old.figures, figure_files)
                 old_rows, new_rows = text_rows(old.document, old_intervals), text_rows(new.document, intervals)
-                opcodes = difflib.SequenceMatcher(None, [r['text'] for r in old_rows], [r['text'] for r in new_rows],
-                                                  autojunk=False).get_opcodes()
+                old_texts, new_texts = [r['text'] for r in old_rows], [r['text'] for r in new_rows]
+                opcodes = without_moves(difflib.SequenceMatcher(None, old_texts, new_texts, autojunk=False).get_opcodes(),
+                                        old_texts, new_texts)
             except ValueError:
                 pass
     for _, card in cards:
@@ -299,8 +398,8 @@ def render_section(old, new, node, cards, strips, figure_files):
                                               ('new', new.document, pair['after_marks'])):
                     top, bottom = changed_line_bounds(document, pair[side], marks)
                     pair[side]['clip'][1], pair[side]['clip'][3] = top, bottom
-    plan = fold_context(context_plan(intervals, grouped_regions(
-        cards, intervals, lambda page, top, bottom: snap(new.document, page, top, bottom))))
+    plan = across_pages(fold_context(context_plan(intervals, grouped_regions(
+        cards, intervals, lambda page, top, bottom: snap(new.document, page, top, bottom)))))
     by_index = dict(cards)
     blocks, located = [], set()
     for piece in plan:
@@ -325,19 +424,20 @@ def render_section(old, new, node, cards, strips, figure_files):
                                     'bottom': position['clip'][3], 'marks': pair.get('before_marks', [])})
         merged = []
         for region in sorted(regions, key=lambda r: (r['page'], r['top'])):
-            if merged and region['page'] == merged[-1]['page'] and region['top'] <= merged[-1]['bottom']:
+            if merged and region['page'] == merged[-1]['page'] and region['top'] <= merged[-1]['bottom'] + JOIN_GAP:
                 merged[-1]['bottom'] = max(merged[-1]['bottom'], region['bottom'])
                 merged[-1]['marks'].extend(region['marks'])
             else:
                 merged.append({**region, 'marks': list(region['marks'])})
         before = [strips(old.document, r['page'], *snap(old.document, r['page'], r['top'], r['bottom']), r['marks'], 'old')
                   for r in merged]
-        after = strips(new.document, piece['page'], piece['top'], piece['bottom'],
-                       [m for pair in pairs for m in pair.get('after_marks', [])], 'new')
+        after = [strips(new.document, page, top, bottom,
+                        [m for pair in pairs if (pair.get('new') or {}).get('page') == page
+                         for m in pair.get('after_marks', [])], 'new') for page, top, bottom in piece['parts']]
         edited = any(mark['kind'] != 'moved' for pair in pairs
                      for mark in pair.get('before_marks', []) + pair.get('after_marks', []))
         blocks.append({'kind': 'change', 'cards': indices, 'identical': identical,
                        'reflow': not identical and not edited and all(by_index[i]['comparison'] == 'text' for i in indices),
-                       'before': [b for b in before if b], 'after': after})
+                       'before': [b for b in before if b], 'after': [a for a in after if a]})
     unlocated = [i for i, _ in cards if i not in located]
     return blocks, unlocated, len(missing)

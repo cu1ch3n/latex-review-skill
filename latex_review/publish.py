@@ -42,22 +42,28 @@ def render_command():
 
 
 class Publisher:
-    """A single worker that builds rounds one at a time; requests for a waiting task coalesce."""
+    """Build independent tasks concurrently, keeping each task's rounds in order."""
 
     def __init__(self, app):
         self.app = app
         self.jobs = queue.Queue()
         self.mutex = threading.Lock()
         self.pending = {}   # task -> id of its queued or running job
+        self.running = set()
+        self.stopping = False
         app.store.execute("UPDATE jobs SET status='failed', finished=?, result=? WHERE status IN ('queued','running')",
                           time.time(), json.dumps({'error': 'The review server restarted during the build.',
                                                    'next': 'Publish again.'}))
-        self.worker = threading.Thread(target=self.work, name='publisher', daemon=True)
-        self.worker.start()
+        self.workers = [threading.Thread(target=self.work, name=f'publisher-{i + 1}', daemon=True)
+                        for i in range(app.project.build_workers)]
+        for worker in self.workers:
+            worker.start()
 
     def submit(self, name):
         self.app.tasks.get(name)
         with self.mutex:
+            if self.stopping:
+                raise ValueError('The review server is stopping. Publish again after it restarts.')
             current = self.pending.get(name)
             if current:
                 job = self.job(current)
@@ -67,7 +73,10 @@ class Publisher:
             self.app.store.execute("INSERT INTO jobs(id,task,status,created) VALUES(?,?,'queued',?)",
                                    identity, name, time.time())
             self.pending[name] = identity
-            self.jobs.put(identity)
+            # A follow-up round becomes runnable only when this task's active round
+            # finishes. It must not occupy a worker while other tasks can run.
+            if name not in self.running:
+                self.jobs.put(identity)
         return self.job(identity)
 
     def job(self, identity):
@@ -84,7 +93,15 @@ class Publisher:
             return bool(self.pending) if name is None else name in self.pending
 
     def stop(self):
-        self.jobs.put(None)
+        with self.mutex:
+            self.stopping = True
+            for _ in self.workers:
+                self.jobs.put(None)
+
+    def join(self, timeout=None):
+        deadline = None if timeout is None else time.monotonic() + timeout
+        for worker in self.workers:
+            worker.join(None if deadline is None else max(0, deadline - time.monotonic()))
 
     def work(self):
         while True:
@@ -92,7 +109,11 @@ class Publisher:
             if identity is None:
                 return
             job = self.job(identity)
-            self.update(identity, status='running')
+            with self.mutex:
+                if self.stopping:
+                    continue
+                self.running.add(job['task'])
+                self.update(identity, status='running')
             try:
                 result, status = self.build_round(job), 'done'
             except PublishError as error:
@@ -104,11 +125,18 @@ class Publisher:
                 result, status = {'error': f'{type(error).__name__}: {error}', 'next': 'Publish again.'}, 'failed'
             self.update(identity, status=status, result=json.dumps(result), finished=time.time())
             with self.mutex:
+                self.running.remove(job['task'])
                 if self.pending.get(job['task']) == identity:
                     del self.pending[job['task']]
+                elif not self.stopping:
+                    self.jobs.put(self.pending[job['task']])
+                # Cache cleanup must not remove a build another worker is using
+                # for a partial build or PDF rendering. Submission is locked too.
+                if not self.pending and not self.stopping:
+                    self.prune_cache()
 
     def ahead(self, job):
-        """How many rounds, of any task, build before this queued one."""
+        """Older unfinished rounds, which may be running in parallel."""
         return self.app.store.one("SELECT COUNT(*) AS n FROM jobs WHERE status IN ('queued','running') AND created<?",
                                   job['created'])['n']
 
@@ -194,7 +222,6 @@ class Publisher:
                 app.repo.update_ref(f'refs/latex-review/{name}/round-{number}', after)
         finally:
             shutil.rmtree(output, ignore_errors=True)
-        self.prune_cache()
         visual = json.loads((final / 'round.json').read_text()).get('units', {})
         kinds = {}
         for unit in visual.values():

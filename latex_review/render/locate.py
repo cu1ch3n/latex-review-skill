@@ -126,21 +126,37 @@ class Locator:
         self.cache = {}
 
     def lookup(self, path, line):
+        """SyncTeX boxes (page, top, bottom) of one source line."""
         key = (str(path), line)
         if key not in self.cache:
             result = subprocess.run(['synctex', 'view', '-i', f'{line}:0:{path}', '-o', self.build.info['pdf']],
                                     capture_output=True, text=True)
-            records = []
+            margins = self.build.margins
+            records, shipped = [], set()
             for block in re.split(r'(?m)^Page:', result.stdout)[1:]:
                 fields = dict(re.findall(r'(?m)^(x|y|h|v|W|H):([\d.+-]+)', block))
                 try:
                     page = int(block.splitlines()[0]) - 1
                     y, v, height = float(fields['y']), float(fields['v']), float(fields['H'])
-                    records.append((page, min(y, v - height), max(y, v)))
                 except (ValueError, KeyError, IndexError):
                     continue
-            self.cache[key] = records
+                if not v - height - 4 <= y <= v + 4:
+                    continue  # A box far from its own point, such as a whole page.
+                if (margins.header is not None and y < margins.header) or (margins.footer is not None and y > margins.footer):
+                    shipped.add(page)
+                else:
+                    records.append((page, min(y, v - height), max(y, v)))
+            # TeX runs the output routine at the line where a page fills up, and SyncTeX credits that
+            # line with what the routine adds to the page: running heads, footers and floats.
+            self.cache[key] = [record for record in records if record[0] not in shipped]
         return self.cache[key]
+
+    def boxes(self, name, start, end):
+        """SyncTeX boxes (page, top, bottom) of exactly these source lines."""
+        path = self.build.path(name)
+        if not path.is_file() or path.suffix != '.tex':
+            return []
+        return [record for line in range(max(1, start), end + 1)[:MAX_LOOKUPS] for record in self.lookup(path, line)]
 
     def locate(self, name, start, end, whole=False):
         """Regions {page, clip, label} showing the given source lines."""

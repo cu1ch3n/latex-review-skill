@@ -8,7 +8,7 @@
 
 Review your AI agent's LaTeX edits as typeset PDF, one change at a time.
 
-![The review page: a changed equation shown before and after, inside its section](docs/review-page.png)
+![Ask your agent, review LaTeX edits in the PDF, then accept or leave a comment](docs/demo.gif)
 
 The agent edits in its own Git worktree. You see every change in place in the PDF, including text, formulas and figures, and accept, reject or comment on it. Accepted changes go into your working tree. Comments go back to the agent, which revises and sends the next round.
 
@@ -29,6 +29,10 @@ In your LaTeX project (a Git repository), ask your agent:
 > Use latex-review-skill to tighten Section 3, and let me review the changes.
 
 It sends you a link. Press `A` to accept, `R` to reject, `C` to comment, `J`/`K` or `→`/`←` for the next or previous change, `N` for the next undecided one, and `⌘Z` to undo.
+
+The agent stays waiting while you review. Once you decide the last change, it automatically picks up your comments and continues, or reports completion if no revisions are needed. You do not need to send an extra "I'm done" message. **Message the agent** also interrupts the wait, so you can ask it to pause or change direction before deciding every change. Keep the agent session running while you review.
+
+After completion, the review stays open for inspection and undo. Ask the agent to close or clean up the review when you no longer need it.
 
 Working on several tasks? Click **All reviews** at the top of any review page, or open the same server address without `?task=…`. The overview lists open tasks in that repository with their status, latest round and decision counts. Search by title or task name, or filter to tasks awaiting your review. It updates automatically as agents publish and you review changes.
 

@@ -105,6 +105,7 @@ kbd {
 .badge:empty { display: none; }
 .link { border: 0; background: none; padding: 0 2px; font-size: 12px; color: var(--accent); }
 .link.active { font-weight: 600; text-decoration: underline; }
+.edits { white-space: nowrap; }
 .side { position: relative; border-left: 3px solid transparent; }
 .side.before { background: var(--before); border-left-color: var(--before-edge); }
 .side.after { background: var(--after); border-left-color: var(--after-edge); }
@@ -135,7 +136,17 @@ kbd {
 .histories { background: #f6f7fb; border-bottom: 1px solid var(--line); color: #3d4657; }
 .source { padding: 10px 14px 12px; background: #fbfbf8; border-top: 1px solid var(--line); line-height: 1.5; }
 .source-unit + .source-unit { margin-top: 12px; }
-.source-title { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: #555; margin-bottom: 6px; }
+.source-title { display: flex; align-items: center; gap: 8px; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: #555; margin-bottom: 6px; }
+.unit-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; font: 12px system-ui, sans-serif; }
+.unit-actions button { border: 1px solid var(--line); background: var(--paper); border-radius: 6px; padding: 1px 8px; font-weight: 600; }
+.unit-actions button:not(:disabled):hover { background: var(--frame); }
+.unit-actions .accept { color: var(--accept); }
+.unit-actions .reject { color: var(--reject); }
+.unit-actions .comment { color: var(--comment); }
+.unit-state { font-weight: 600; }
+.source-unit[data-state=accepted] .unit-state { color: var(--accept); }
+.source-unit[data-state=rejected] .unit-state { color: var(--reject); }
+.source-unit[data-state=commented] .unit-state { color: var(--comment); }
 .source-code {
   margin: 0; padding: 10px 12px; background: #fff; border: 1px solid #ebebe5; border-radius: 5px;
   font: 12.5px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: #2b2f33;

@@ -10,7 +10,7 @@ from .git import Repo, clean_path, within
 CONFIG_NAME = '.latex-review.json'
 ENGINES = ('pdflatex', 'xelatex', 'lualatex')
 SETTINGS = {'main', 'engine', 'latexmkrc', 'source_dir', 'partial_builds', 'preload',
-            'dependencies', 'figures', 'worktrees'}
+            'dependencies', 'figures', 'worktrees', 'build_workers'}
 SKIP_DIRS = {'build', 'out', 'output', 'node_modules', '__pycache__'}
 PREFERRED = ('main', 'thesis', 'paper', 'manuscript', 'document', 'ms', 'article', 'report', 'book')
 MAGIC = re.compile(r'^%\s*!\s*TEX\s+(?:TS-)?program\s*=\s*(\w+)', re.I | re.M)
@@ -38,6 +38,7 @@ class Project:
     dependencies: dict       # include target -> targets that must be compiled with it
     figures: tuple           # repository paths whose files are reviewed as whole figures
     worktrees: Path          # parent directory of task worktrees
+    build_workers: int = 1   # independent tasks built concurrently
 
     @property
     def doc_dir(self):
@@ -92,9 +93,13 @@ def load_project(root):
                  else root.parent / (root.name + '-tasks'))
     if worktrees == root or root in worktrees.parents:
         raise ConfigError('"worktrees" must be outside the repository.')
+    build_workers = settings.get('build_workers', 1)
+    if type(build_workers) is not int or not 1 <= build_workers <= 8:
+        raise ConfigError('"build_workers" must be an integer between 1 and 8.')
     return Project(root=root, state=state, main=main, engine=engine, latexmkrc=rc,
                    source_dir=source_dir, partial_builds=settings.get('partial_builds', True) is not False,
-                   preload=preload, dependencies=dependencies, figures=figures, worktrees=worktrees)
+                   preload=preload, dependencies=dependencies, figures=figures, worktrees=worktrees,
+                   build_workers=build_workers)
 
 
 def candidate_dirs(root):

@@ -35,8 +35,8 @@
     <nav id="actions" class="actions" aria-label="Review the current change" hidden>
       <button type="button" data-command="previous" class="nav" aria-label="Previous change" aria-keyshortcuts="K ArrowLeft" title="Previous change (K or ←)">‹<kbd>K</kbd></button>
       <span id="position" class="position" aria-live="polite"></span>
-      <button type="button" data-command="accept" class="accept" aria-keyshortcuts="A" title="Accept: apply to your manuscript (A)">Accept<kbd>A</kbd></button>
-      <button type="button" data-command="reject" class="reject" aria-keyshortcuts="R" title="Reject: discard the change (R)">Reject<kbd>R</kbd></button>
+      <button type="button" data-command="accept" class="accept" aria-keyshortcuts="A" title="Accept: apply to your manuscript (A)">Accept<span class="count"></span><kbd>A</kbd></button>
+      <button type="button" data-command="reject" class="reject" aria-keyshortcuts="R" title="Reject: discard the change (R)">Reject<span class="count"></span><kbd>R</kbd></button>
       <button type="button" data-command="comment" class="comment" aria-keyshortcuts="C" title="Comment: ask the agent to revise (C)">Comment<kbd>C</kbd></button>
       <button type="button" data-command="pending" class="skip" aria-keyshortcuts="N" title="Go to the next undecided change (N)" hidden>Next undecided<kbd>N</kbd></button>
       <span id="complete" class="complete" hidden></span>
@@ -69,7 +69,8 @@
       <dt><kbd>M</kbd></dt><dd>Message the agent</dd>
       <dt><kbd>Esc</kbd></dt><dd>Close this dialog or the comment box</dd>
     </dl>
-    <p class="muted">Decided changes show the version you chose. Undo works within the current round.</p>
+    <p class="muted">Decided changes show the version you chose. Undo works within the current round.
+      When a change holds several edits, A, R and C act on all of them; decide on one edit at a time in its LaTeX view.</p>
     <form method="dialog"><button>Close</button></form>
   </dialog>
 

@@ -99,13 +99,19 @@ function describeLocation(units) {
 function sourceView(units) {
   return units.map(id => {
     const unit = view.units[id];
-    const title = el('div', {class: 'source-title'}, `${unit.file}`,
+    // A change can hold several edits whose PDF output overlaps; each can be decided on its own.
+    const actions = units.length > 1 ? el('span', {class: 'unit-actions'},
+      el('span', {class: 'unit-state'}),
+      ...['accept', 'reject', 'comment'].map(kind => el('button', {type: 'button', class: kind, 'data-unit': id,
+        'data-unit-command': kind, title: `${kind[0].toUpperCase() + kind.slice(1)} only this edit`},
+      kind[0].toUpperCase() + kind.slice(1)))) : null;
+    const title = el('div', {class: 'source-title'}, el('span', {}, `${unit.file}`,
       el('span', {class: 'muted'}, unit.status === 'added' ? ' · new file' : unit.status === 'deleted' ? ' · deleted file'
-        : ` · lines ${unit.new_start}–${unit.new_end}`));
-    if (unit.kind === 'binary') return el('div', {class: 'source-unit'}, title, el('p', {class: 'muted'}, 'Binary file changed.'));
+        : ` · lines ${unit.new_start}–${unit.new_end}`)), actions);
+    if (unit.kind === 'binary') return el('div', {class: 'source-unit', 'data-unit': id}, title, el('p', {class: 'muted'}, 'Binary file changed.'));
     const code = el('pre', {class: 'source-code'},
       wordDiff(unit.old_text, unit.new_text).map(part => part.type === 'equal' ? part.text : el(part.type, {}, part.text)));
-    return el('div', {class: 'source-unit'}, title, code,
+    return el('div', {class: 'source-unit', 'data-unit': id}, title, code,
       unit.truncated ? el('p', {class: 'muted'}, 'Long change: the source is shortened.') : null);
   });
 }
@@ -119,6 +125,8 @@ function changeBlock(block, index, inline) {
       el('span', {class: 'change-number'}, `Change ${index + 1}`),
       el('span', {class: 'change-where', title: describeLocation(block.units)}, describeLocation(block.units)),
       el('span', {class: 'change-kind'}, block.reflow ? 'Reflow' : kinds.map(k => KIND[k] || k).join(', ')),
+      block.units.length > 1 ? el('button', {type: 'button', class: 'link edits', 'data-command': 'source',
+        title: 'This change holds several edits. Show them, and decide on each one separately'}, `${block.units.length} edits`) : null,
       el('span', {class: 'badge'}),
       el('button', {type: 'button', class: 'link', 'data-command': 'source', title: 'Show the LaTeX source (S)'}, 'LaTeX')),
     history(block.units),
@@ -143,7 +151,25 @@ function openSource(article, units, toggle = true) {
   const box = article.querySelector('.source');
   if (!box.childElementCount) box.append(...sourceView(units));
   box.hidden = toggle ? !box.hidden : false;
-  article.querySelector('[data-command=source]').classList.toggle('active', !box.hidden);
+  for (const link of article.querySelectorAll('[data-command=source]')) link.classList.toggle('active', !box.hidden);
+  renderEdits(article);
+}
+
+function renderEdits(article) {
+  const state = view.state;
+  if (!state) return;
+  const open = view.round === state.latest && !state.closed;
+  for (const row of article.querySelectorAll('.source-unit[data-unit]')) {
+    const decision = state.decisions?.[row.dataset.unit] || 'pending';
+    row.dataset.state = decision;
+    const label = row.querySelector('.unit-state');
+    if (!label) continue;
+    label.textContent = decision === 'pending' ? '' : decision[0].toUpperCase() + decision.slice(1);
+    for (const button of row.querySelectorAll('[data-unit-command]')) {
+      button.hidden = decision !== 'pending' || !open;
+      button.disabled = !!view.busy;
+    }
+  }
 }
 
 function renderDocument() {
@@ -207,6 +233,7 @@ function refresh() {
         if (img.getAttribute('src')) img.src = want;
       }
     }
+    renderEdits(article);
     const remarks = stop.units.map(id => state.comments?.[id]).filter(Boolean);
     const remark = article.querySelector('.remark');
     remark.hidden = !remarks.length;
@@ -265,6 +292,8 @@ function renderActions() {
     button.hidden = remaining < 0 || decided;
     button.disabled = locked || !pending.length;
     button.classList.toggle('working', view.busy === kind);
+    const count = button.querySelector('.count');
+    if (count) count.textContent = pending.length === 2 ? ' both' : pending.length > 2 ? ` all ${pending.length}` : '';
   }
   bar.querySelector('[data-command=pending]').hidden = !decided;
   bar.querySelector('[data-command=previous]').disabled = view.current <= 0;
@@ -357,18 +386,19 @@ function move(direction) {
 
 // Decisions
 
-async function decide(kind, body = '') {
+async function decide(kind, body = '', changes = pendingUnits(view.stops[view.current], view.state.decisions)) {
   const stop = view.stops[view.current];
-  const changes = pendingUnits(stop, view.state.decisions);
   if (!changes.length || view.busy) return;
   view.busy = kind;
   renderActions();
   try {
     view.state = await api('/decide', {id: newId(), action: kind, round: view.round, changes, body});
     if (kind === 'comment') closeComposer(true);
-    const next = nextPending(view.stops, view.state.decisions, view.current);
+    const next = pendingUnits(stop, view.state.decisions).length ? view.current
+      : nextPending(view.stops, view.state.decisions, view.current);
     view.busy = null;
-    if (next >= 0) select(next);
+    if (next === view.current) refresh();
+    else if (next >= 0) select(next);
     else {
       refresh();
       toast(`Review complete. ${outcome(progress(view.state.decisions))}`);
@@ -402,15 +432,18 @@ async function undo() {
 }
 
 function draftKey() {
-  return view.composer?.mode === 'note' ? 'note' : `${view.round}:${view.stops[view.current]?.key}`;
+  return view.composer?.mode === 'note' ? 'note' : `${view.round}:${view.composer?.changes?.join(',')}`;
 }
 
-function openComposer(mode) {
-  if (mode === 'comment' && !pendingUnits(view.stops[view.current], view.state.decisions).length) return;
-  view.composer = {mode, stop: view.current};
+function openComposer(mode, changes = pendingUnits(view.stops[view.current], view.state.decisions)) {
+  if (mode === 'comment' && !changes.length) return;
+  view.composer = {mode, stop: view.current, changes};
   const form = $('#composer'), text = $('#composer-text');
+  const units = view.stops[view.current]?.units || [];
+  const which = changes.length === 1 && units.length > 1 ? `the edit in ${view.units[changes[0]].file.split('/').pop()} of `
+    : changes.length > 1 ? `${changes.length === 2 ? 'both' : `all ${changes.length}`} edits of ` : '';
   $('#composer-label').textContent = mode === 'note' ? 'Message the agent'
-    : `Comment on change ${view.current + 1} — the agent will revise it`;
+    : `Comment on ${which}change ${view.current + 1} — the agent will revise it`;
   text.placeholder = mode === 'note' ? 'Anything the agent should know or do next…' : 'What should the agent change here?';
   text.value = storage.read().drafts?.[draftKey()] || '';
   form.hidden = false;
@@ -440,7 +473,7 @@ async function submitComposer() {
     return;
   }
   if (view.composer.stop !== view.current) select(view.composer.stop);
-  await decide('comment', text);
+  await decide('comment', text, view.composer.changes);
 }
 
 // Loading and polling
@@ -616,6 +649,12 @@ function bind() {
     const index = Number(article.dataset.stop);
     if (index !== view.current) select(index, {scroll: false});
     if (event.target.closest('[data-command=source]')) openSource(article, view.stops[index].units);
+    const edit = event.target.closest('[data-unit-command]');
+    if (edit && !edit.disabled) {
+      const id = edit.dataset.unit;
+      if (edit.dataset.unitCommand === 'comment') openComposer('comment', [id]);
+      else decide(edit.dataset.unitCommand, '', [id]);
+    }
   });
   $('#paper').addEventListener('scroll', followScroll, {passive: true});
   $('#composer').addEventListener('submit', event => { event.preventDefault(); submitComposer(); });

@@ -114,12 +114,14 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual((project.main, project.doc_dir, project.engine), ('doc/paper.tex', 'doc', 'pdflatex'))
         self.assertTrue(project.is_figure('doc/figures/a.tex'))
         self.assertEqual(project.worktrees, self.root.resolve().parent / (self.root.name + '-tasks'))
+        self.assertEqual(project.build_workers, 1)
         self.write('.latex-review.json', json.dumps({'main': 'doc/paper.tex', 'engine': 'xelatex', 'source_dir': '.',
-                                                     'preload': {'chapters/a': 'macros/a.tex'}}))
+                                                     'preload': {'chapters/a': 'macros/a.tex'}, 'build_workers': 2}))
         project = load_project(self.root)
+        self.assertEqual(project.build_workers, 2)
         self.assertEqual((project.engine, project.source_dir, project.preload), ('xelatex', '', {'chapters/a': 'macros/a.tex'}))
         for bad in ({'mian': 'x'}, {'engine': 'tex'}, {'main': 'missing.tex'}, {'source_dir': 'other'},
-                    {'worktrees': 'inside'}):
+                    {'worktrees': 'inside'}, *({'build_workers': n} for n in (0, 9, True, '2', 1.5))):
             self.write('.latex-review.json', json.dumps({'main': 'doc/paper.tex', **bad}))
             with self.assertRaises(ConfigError):
                 load_project(self.root)

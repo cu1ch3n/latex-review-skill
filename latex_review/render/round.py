@@ -35,11 +35,14 @@ def classify(old, new, unit, old_locator, new_locator, body, figure_files):
         if not analysis['text_changed']:
             pixels += pixel_difference(crop_image(old.document, l) if l else None,
                                        crop_image(new.document, r) if r else None)['changed_pixels']
+    # The changed lines themselves, as opposed to the paragraphs shown around them.
+    own = {'old': old_locator.boxes(name, unit['old_start'], unit['old_end']) if left and not whole else [],
+           'new': new_locator.boxes(name, unit['new_start'], unit['new_end']) if right and not whole else []}
     moved = any(l['page'] != r['page'] or l['label'] != r['label'] or
                 any(abs(a - b) > 1 for a, b in zip(l['clip'], r['clip'])) for l, r in zip(left, right))
     kind = ('unmapped' if not pairs else 'text' if analysis['text_changed'] else 'layout' if pixels else
             'position' if moved else 'identical')
-    return {'pairs': pairs, 'comparison': kind}
+    return {'pairs': pairs, 'comparison': kind, 'own': own}
 
 
 def loose_block(card, strips, old, new):
