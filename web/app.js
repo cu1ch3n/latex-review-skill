@@ -7,6 +7,8 @@ const $ = selector => document.querySelector(selector);
 const KIND = {text: 'Text', layout: 'Layout', position: 'Moved', identical: 'No visible change', unmapped: 'Source only'};
 const PHASE = {snapshot: 'Taking a snapshot', build: 'Compiling LaTeX', render: 'Rendering the diff'};
 const VERB = {accept: 'acceptance', reject: 'rejection', comment: 'comment'};
+const STATUS = {editing: 'Waiting for the agent', reviewing: 'Your turn', revise: 'The agent will revise',
+  done: 'All decided', build_failed: 'Last publish failed', building: 'Publishing a round'};
 
 const view = {
   state: null, detail: null, stops: [], units: {}, current: -1, round: null,
@@ -239,8 +241,7 @@ function jobText(job) {
 function renderStatus() {
   const {state, job} = view.state;
   const status = $('#status');
-  let text = {editing: 'Waiting for the agent', reviewing: 'Your turn', revise: 'The agent will revise',
-    done: 'All decided', build_failed: 'Last publish failed'}[state] || '';
+  let text = STATUS[state] || '';
   if (state === 'building') text = jobText(job);
   if (view.state.closed) text = 'Finished';
   if (!view.online) text = 'Reconnecting…';
@@ -499,15 +500,94 @@ function renderWaiting() {
     el('p', {class: 'muted'}, 'This page updates by itself.')));
 }
 
-async function showIndex() {
+function taskCard(task) {
+  const total = Object.values(task.counts).reduce((sum, count) => sum + count, 0);
+  const decided = total - task.counts.pending;
+  return el('li', {}, el('a', {class: 'task-card', href: `/?task=${encodeURIComponent(task.task)}`},
+    el('div', {class: 'task-heading'}, el('h2', {}, task.title),
+      el('span', {class: 'status', 'data-state': task.state}, STATUS[task.state] || task.state)),
+    el('div', {class: 'task-meta'}, el('span', {class: 'task-name'}, task.task),
+      el('span', {}, task.round ? `Round ${task.round}` : 'Not published yet')),
+    total ? el('div', {class: 'task-progress'},
+      el('span', {class: 'track', 'aria-hidden': true}, el('i', {style: `width:${100 * decided / total}%`})),
+      el('span', {}, `${decided} of ${total} decided`)) : null,
+    el('div', {class: 'task-footer'},
+      el('div', {class: 'task-counts'}, total
+        ? ['pending', 'accepted', 'rejected', 'commented'].filter(kind => task.counts[kind]).map(kind =>
+          el('span', {'data-kind': kind}, `${task.counts[kind]} ${kind}`))
+        : el('span', {}, task.round ? 'No changes in this round' : 'Waiting for the first round')),
+      el('span', {class: 'task-open', 'aria-hidden': true}, task.counts.pending ? 'Review →' : 'Open →'))));
+}
+
+function showIndex() {
   document.body.classList.add('index');
-  const response = await fetch('/api/tasks');
-  const {tasks} = await response.json();
-  $('#document').replaceChildren(el('section', {class: 'part'}, el('h2', {class: 'part-title'}, 'Open reviews'),
-    tasks.length ? el('ul', {class: 'task-list'}, tasks.map(task => el('li', {},
-      el('a', {href: `?task=${encodeURIComponent(task.task)}`}, task.title),
-      el('span', {class: 'muted'}, ` · ${task.task} · ${task.round ? `round ${task.round}, ${task.counts.pending} pending` : 'no round yet'}`))))
-      : el('p', {class: 'empty'}, 'No open reviews. Agents start one with review.py start.')));
+  document.title = 'All reviews · LaTeX Review';
+  $('#help-button').hidden = true;
+  const search = el('input', {type: 'search', placeholder: 'Search by title or task name', 'aria-label': 'Search reviews'});
+  const filter = el('select', {'aria-label': 'Filter reviews'},
+    el('option', {value: 'all'}, 'All open reviews'), el('option', {value: 'pending'}, 'Needs your review'));
+  const summary = el('p', {class: 'overview-summary', 'aria-live': 'polite'}, 'Loading reviews…');
+  const list = el('ul', {class: 'task-list', 'aria-label': 'Open reviews'});
+  const empty = el('p', {class: 'empty', hidden: true});
+  $('#document').replaceChildren(el('section', {class: 'overview'},
+    el('header', {class: 'overview-heading'}, el('h1', {}, 'All reviews'),
+      el('p', {class: 'muted'}, 'Open tasks in this repository. Pick a task to continue reviewing.'), summary),
+    el('div', {class: 'task-tools'}, search, filter), list, empty));
+
+  let tasks = [], signature = null, timer, loading = false;
+  function render() {
+    const query = search.value.trim().toLocaleLowerCase();
+    const shown = tasks.filter(task => `${task.title} ${task.task}`.toLocaleLowerCase().includes(query)
+      && (filter.value !== 'pending' || task.counts.pending > 0));
+    // Keep tasks with undecided changes first, including those publishing another round.
+    const priority = task => task.counts.pending ? 0
+      : ({build_failed: 1, revise: 2, building: 3, editing: 4, done: 5}[task.state] ?? 6);
+    shown.sort((a, b) => priority(a) - priority(b));
+    const focused = list.contains(document.activeElement) ? document.activeElement.closest('a')?.getAttribute('href') : null;
+    list.replaceChildren(...shown.map(taskCard));
+    if (focused) [...list.querySelectorAll('a')].find(link => link.getAttribute('href') === focused)?.focus({preventScroll: true});
+    list.hidden = !shown.length;
+    empty.hidden = !!shown.length;
+    empty.textContent = tasks.length ? 'No reviews match your search or filter.'
+      : 'No open reviews. New tasks will appear here when the agent starts a review.';
+    const pending = tasks.filter(task => task.counts.pending > 0).length;
+    const comments = tasks.reduce((sum, task) => sum + task.counts.commented, 0);
+    summary.textContent = `${tasks.length} open review${tasks.length === 1 ? '' : 's'} · ${pending} awaiting your review`
+      + (comments ? ` · ${comments} commented change${comments === 1 ? '' : 's'}` : '');
+  }
+
+  async function update() {
+    if (loading) return;
+    loading = true;
+    clearTimeout(timer);
+    const status = $('#status');
+    try {
+      const response = await fetch('/api/tasks');
+      if (!response.ok) throw new Error(`The server answered ${response.status}.`);
+      const value = await response.json();
+      const next = JSON.stringify(value.tasks);
+      if (next !== signature) {
+        tasks = value.tasks;
+        render();
+        signature = next;
+      }
+      status.textContent = 'Updates automatically';
+      status.dataset.state = '';
+      status.removeAttribute('title');
+    } catch (error) {
+      status.textContent = 'Reconnecting…';
+      status.dataset.state = 'offline';
+      status.title = error.message;
+      if (signature === null) summary.textContent = 'Unable to load reviews. Retrying automatically…';
+    } finally {
+      loading = false;
+      timer = setTimeout(update, document.hidden ? 10000 : 3000);
+    }
+  }
+  search.addEventListener('input', render);
+  filter.addEventListener('change', render);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) update(); });
+  update();
 }
 
 // Events
@@ -576,5 +656,8 @@ function bind() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 }
 
-bind();
-if (TASK) poll(); else showIndex();
+if (TASK) {
+  $('#overview-link').hidden = false;
+  bind();
+  poll();
+} else showIndex();

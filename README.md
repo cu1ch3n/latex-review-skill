@@ -30,6 +30,8 @@ In your LaTeX project (a Git repository), ask your agent:
 
 It sends you a link. Press `A` to accept, `R` to reject, `C` to comment, `J`/`K` or `→`/`←` for the next or previous change, `N` for the next undecided one, and `⌘Z` to undo.
 
+Working on several tasks? Click **All reviews** at the top of any review page, or open the same server address without `?task=…`. The overview lists open tasks in that repository with their status, latest round and decision counts. Search by title or task name, or filter to tasks awaiting your review. It updates automatically as agents publish and you review changes.
+
 To see it first, ask your agent to "run the latex-review-skill demo".
 
 The agent's instructions are in [SKILL.md](SKILL.md); configuration and internals are in [docs/reference.md](docs/reference.md).
