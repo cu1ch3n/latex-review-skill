@@ -1,6 +1,8 @@
-# LaTeX Review Skill
+<h1 align="center">
+  <img src="docs/logo.svg" width="460" alt="LaTeX Review Skill">
+</h1>
 
-[English](README.md) · **简体中文**
+<p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 
 直接在 PDF 中审阅 agent 的 LaTeX 修改。接受、拒绝或评论，意见通过 CLI 返回给 agent。
 

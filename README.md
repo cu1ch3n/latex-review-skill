@@ -1,6 +1,8 @@
-# LaTeX Review Skill
+<h1 align="center">
+  <img src="docs/logo.svg" width="460" alt="LaTeX Review Skill">
+</h1>
 
-**English** · [简体中文](README.zh-CN.md)
+<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 
 Review an agent's LaTeX edits directly in the PDF. Accept, reject, or comment; feedback returns to the agent through the CLI.
 
