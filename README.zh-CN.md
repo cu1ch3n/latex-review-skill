@@ -14,14 +14,6 @@
 npx skills add cu1ch3n/latex-review-skill -g
 ```
 
-在安装后的 skill 目录中执行：
-
-```sh
-npm ci
-npm run build
-node scripts/review.mjs doctor
-```
-
 ## 使用
 
 在 agent 中打开你的 LaTeX Git 仓库，然后提出请求：

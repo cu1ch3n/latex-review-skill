@@ -14,14 +14,6 @@ Requires macOS or Linux, Node.js 22.22+, Git, and TeX Live or MacTeX with `latex
 npx skills add cu1ch3n/latex-review-skill -g
 ```
 
-From the installed skill directory:
-
-```sh
-npm ci
-npm run build
-node scripts/review.mjs doctor
-```
-
 ## Use
 
 Open your LaTeX Git repository in the agent and ask:
