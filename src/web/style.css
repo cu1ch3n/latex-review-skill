@@ -1059,7 +1059,10 @@ body {
 .review-body > #paper {
   height: 100%;
   padding-right: 54px;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+}
+.review-body > #paper::-webkit-scrollbar {
+  display: none;
 }
 .change-map {
   position: absolute;
