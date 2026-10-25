@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import type { Feedback } from "../../src/types.ts";
 test.beforeEach(async ({ page }) => {
   await page.goto("/?task=tighten-design");
   await expect(page.locator(".change").first()).toBeVisible();
@@ -146,4 +147,76 @@ test("Accept all acts once for the full round and one undo restores every change
   await expect(
     page.getByRole("button", { name: "Accept all (7)", exact: true }),
   ).toBeEnabled();
+});
+
+test("comments retain drafts and reach agent feedback with their source location", async ({
+  page,
+}) => {
+  const comment =
+    "请保留这里的技术含义。\nExplain why this bound is necessary.";
+  await page
+    .locator(".change.current")
+    .getByRole("button", { name: "Comment", exact: true })
+    .click();
+  await page.getByRole("textbox", { name: /^Comment on change/ }).fill(comment);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("c");
+  await expect(
+    page.getByRole("textbox", { name: /^Comment on change/ }),
+  ).toHaveValue(comment);
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.locator('.change[data-state="commented"]')).toHaveCount(1);
+  const response = await page.request.get(
+    "/api/tasks/tighten-design/feedback?after=0",
+  );
+  expect(response.ok()).toBe(true);
+  const feedback = (await response.json()) as Feedback;
+  const delivered = feedback.feedback.find(
+    (item) => item.kind === "comment" && item.text === comment,
+  );
+  expect(delivered?.changes).toEqual([
+    expect.objectContaining({
+      file: "paper/sections/design.tex",
+      lines: expect.any(Array),
+      old: expect.any(String),
+      new: expect.any(String),
+    }),
+  ]);
+  await page.keyboard.press(
+    process.platform === "darwin" ? "Meta+z" : "Control+z",
+  );
+  await expect(page.locator('.change[data-state="commented"]')).toHaveCount(0);
+});
+
+test("review controls and overview remain usable on narrow screens", async ({
+  page,
+}) => {
+  await expect(page.getByText("Your turn", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Message.*agent/ }),
+  ).toHaveCount(0);
+  for (const width of [1440, 780, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.evaluate(() => document.fonts.ready);
+    await expect(
+      page.getByRole("button", { name: "Accept all (7)", exact: true }),
+    ).toBeInViewport();
+    await expect(
+      page
+        .locator(".change.current")
+        .getByRole("button", { name: "Comment", exact: true }),
+    ).toBeInViewport();
+    const overflow = await page
+      .locator("#paper")
+      .evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: `.cache/browser-paper-${width}.png` });
+  }
+  await page.getByRole("link", { name: "All reviews" }).click();
+  await expect(
+    page.getByRole("heading", { name: "All reviews" }),
+  ).toBeVisible();
+  await page.screenshot({ path: ".cache/browser-overview-390.png" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: ".cache/browser-overview-1440.png" });
 });

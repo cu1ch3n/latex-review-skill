@@ -1,46 +1,38 @@
+@font-face {
+  font-family: "Review Serif";
+  src: url("./fonts/TeXGyrePagellaX-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Review Serif";
+  src: url("./fonts/TeXGyrePagellaX-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-display: swap;
+}
 :root {
-  --frame: #f2f2ee;
-  --bar: #fbfbf9;
-  --ink: #1f2328;
-  --muted: #6a6f74;
-  --line: #e0e0d9;
+  color-scheme: light;
+  --serif:
+    "Review Serif", Palatino, "Palatino Linotype", "Songti SC", Georgia, serif;
+  --frame: #fff;
+  --bar: #fff;
+  --ink: #171717;
+  --muted: #666;
+  --line: #e5e5e5;
   --paper: #fff;
-  --accent: #2b6e5c;
+  --accent: #356aa0;
   --accept: #1d7448;
   --reject: #b0313b;
-  --comment: #2c5ea6;
-  --before: #fbeeee;
+  --comment: #356aa0;
+  --before: #fff;
   --before-edge: #d17c82;
-  --after: #eef8f1;
+  --after: #fff;
   --after-edge: #68ab82;
-  --head: #f7f7f3;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 18px rgb(0 0 0 / 0.05);
-  --paper-top: 18px;
-  font:
-    14px/1.5 -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    "PingFang SC",
-    "Noto Sans",
-    sans-serif;
+  --head: #fafafa;
+  --paper-top: 24px;
+  font: 15px/1.5 var(--serif);
   color: var(--ink);
   background: var(--frame);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --frame: #1b1c1e;
-    --bar: #232427;
-    --ink: #e6e6e1;
-    --muted: #9da1a5;
-    --line: #36383b;
-    --accent: #5cb89c;
-    --accept: #59c289;
-    --reject: #f07b84;
-    --comment: #7aa8ef;
-    --head: #2a2c2f;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 22px rgb(0 0 0 / 0.35);
-  }
 }
 
 * {
@@ -53,8 +45,11 @@ body {
   grid-template-rows: auto 1fr;
   overflow: hidden;
   background: var(--frame);
+  text-rendering: optimizeLegibility;
 }
 button,
+input,
+select,
 textarea {
   font: inherit;
   color: inherit;
@@ -66,6 +61,13 @@ button:disabled {
   cursor: default;
   opacity: 0.38;
 }
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 [hidden] {
   display: none !important;
 }
@@ -74,6 +76,21 @@ button:disabled {
 }
 a {
   color: var(--accent);
+  text-underline-offset: 0.18em;
+}
+h1,
+h2,
+.brand {
+  font-family: var(--serif);
+  font-weight: 400;
+  line-height: 1.3;
+}
+.brand {
+  font-size: 20px;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-decoration: none;
 }
 kbd {
   font:
@@ -95,8 +112,8 @@ kbd {
   display: flex;
   align-items: center;
   gap: 18px;
-  min-height: 48px;
-  padding: 6px 16px;
+  min-height: 62px;
+  padding: 10px 24px;
   background: var(--bar);
   border-bottom: 1px solid var(--line);
   z-index: 3;
@@ -108,8 +125,11 @@ kbd {
   min-width: 0;
   flex: 1;
 }
-.identity strong {
-  font-size: 15px;
+.identity h1 {
+  margin: 0;
+  font-size: 20px;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -129,8 +149,7 @@ kbd {
 }
 .track {
   width: 120px;
-  height: 5px;
-  border-radius: 3px;
+  height: 2px;
   background: var(--line);
   overflow: hidden;
 }
@@ -138,7 +157,7 @@ kbd {
   display: block;
   height: 100%;
   width: 0;
-  background: var(--accent);
+  background: #999;
   transition: width 0.3s;
 }
 .bar-end {
@@ -151,36 +170,27 @@ kbd {
 }
 .status {
   font-size: 12px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: var(--frame);
   color: var(--muted);
   white-space: nowrap;
-}
-.status[data-state="reviewing"] {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-}
-.status[data-state="building"],
-.status[data-state="revise"] {
-  color: var(--comment);
-  background: color-mix(in srgb, var(--comment) 12%, transparent);
 }
 .status[data-state="build_failed"],
 .status[data-state="offline"] {
   color: var(--reject);
-  background: color-mix(in srgb, var(--reject) 12%, transparent);
 }
 .ghost {
-  border: 1px solid transparent;
+  border: 0;
   background: transparent;
-  border-radius: 7px;
+  border-radius: 0;
   padding: 5px 9px;
   font-size: 13px;
   color: var(--muted);
 }
 .ghost:hover {
-  border-color: var(--line);
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+.accept-all {
   color: var(--ink);
 }
 .overview-link {
@@ -192,14 +202,12 @@ kbd {
   width: 30px;
   height: 30px;
   padding: 0;
-  border-radius: 50%;
-  border-color: var(--line);
 }
 
 /* Document */
 #paper {
   overflow: auto;
-  padding: var(--paper-top) 16px 90px;
+  padding: var(--paper-top) 24px 90px;
   scroll-padding: 70px 0 90px;
   overflow-anchor: none;
   outline: none;
@@ -217,11 +225,12 @@ kbd {
   margin-top: 30px;
 }
 .part-title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 19px;
+  font-weight: 400;
   color: var(--muted);
-  margin: 6px 2px 10px;
-  letter-spacing: 0.01em;
+  margin: 14px 0 18px;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.02em;
 }
 .part-title .number {
   margin-right: 8px;
@@ -229,8 +238,6 @@ kbd {
 }
 .sheet {
   background: var(--paper);
-  box-shadow: var(--shadow);
-  border-radius: 3px;
   padding: 10px 0;
 }
 .context,
@@ -263,16 +270,11 @@ kbd {
   position: relative;
   scroll-margin: 70px;
   outline: none;
-  color: #1f2328;
+  color: var(--ink);
 }
 .change.standalone {
   background: var(--paper);
-  box-shadow: var(--shadow);
-  border-radius: 3px;
   margin-bottom: 26px;
-}
-.change.standalone .change-head {
-  border-radius: 3px 3px 0 0;
 }
 .change.inline {
   margin: 6px 0;
@@ -281,19 +283,16 @@ kbd {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 5px 12px;
+  padding: 8px 12px;
   font-size: 12px;
   line-height: 1.6;
-  background: var(--head);
+  background: var(--paper);
   color: var(--muted);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
-.change.standalone .change-head {
-  border-top: 0;
-}
 .change-number {
-  font-weight: 600;
+  font-weight: 400;
   color: var(--ink);
   white-space: nowrap;
 }
@@ -335,7 +334,7 @@ kbd {
 }
 .side {
   position: relative;
-  border-left: 3px solid transparent;
+  border-left: 2px solid transparent;
 }
 .side.before {
   background: var(--before);
@@ -356,9 +355,7 @@ kbd {
   position: absolute;
   top: 4px;
   right: 8px;
-  font:
-    600 9.5px/1 -apple-system,
-    sans-serif;
+  font: 11px/1 var(--serif);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--before-edge);
@@ -384,11 +381,10 @@ kbd {
 }
 
 .change.current {
-  box-shadow: 0 0 0 2px var(--accent);
   z-index: 1;
 }
 .change.current .change-head {
-  background: color-mix(in srgb, var(--accent) 10%, var(--head));
+  border-top-color: #999;
   color: var(--ink);
 }
 .change[data-state="accepted"] .badge {
@@ -420,9 +416,9 @@ kbd {
   line-height: 1.55;
 }
 .remark {
-  background: color-mix(in srgb, var(--comment) 8%, #fff);
+  background: var(--paper);
   border-top: 1px solid var(--line);
-  color: #24324a;
+  color: var(--ink);
 }
 .remark p,
 .histories p {
@@ -430,13 +426,13 @@ kbd {
   white-space: pre-wrap;
 }
 .histories {
-  background: #f6f7fb;
+  background: var(--paper);
   border-bottom: 1px solid var(--line);
-  color: #3d4657;
+  color: var(--muted);
 }
 .source {
   padding: 10px 14px 12px;
-  background: #fbfbf8;
+  background: var(--paper);
   border-top: 1px solid var(--line);
   line-height: 1.5;
 }
@@ -460,14 +456,12 @@ kbd {
   display: flex;
   align-items: center;
   gap: 2px;
-  font:
-    12px system-ui,
-    sans-serif;
+  font: 13px var(--serif);
 }
 .unit-actions button {
   border: 1px solid var(--line);
   background: var(--paper);
-  border-radius: 6px;
+  border-radius: 0;
   padding: 1px 8px;
   font-weight: 600;
 }
@@ -499,8 +493,7 @@ kbd {
   margin: 0;
   padding: 10px 12px;
   background: #fff;
-  border: 1px solid #ebebe5;
-  border-radius: 5px;
+  border: 1px solid var(--line);
   font:
     12.5px/1.65 ui-monospace,
     SFMono-Regular,
@@ -529,10 +522,9 @@ kbd {
   max-width: 980px;
   margin: 0 auto 14px;
   padding: 10px 14px;
-  border-radius: 8px;
   font-size: 13px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--bar));
-  border: 1px solid var(--line);
+  background: var(--paper);
+  border-block: 1px solid var(--line);
 }
 .banner p {
   margin: 3px 0;
@@ -585,8 +577,7 @@ kbd {
   padding: 0;
   margin: 0;
   background: var(--bar);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border-block: 1px solid var(--line);
 }
 .task-list li + li {
   border-top: 1px solid var(--line);
@@ -595,11 +586,12 @@ kbd {
   max-width: 880px;
 }
 .overview-heading {
-  margin: 24px 0;
+  margin: 32px 0;
 }
 .overview-heading h1 {
-  font-size: 28px;
-  letter-spacing: -0.025em;
+  font-size: 34px;
+  letter-spacing: 0.02em;
+  font-variant-caps: small-caps;
   margin: 0 0 6px;
 }
 .overview-heading p {
@@ -620,7 +612,7 @@ kbd {
   color: var(--ink);
   background: var(--bar);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 0;
   padding: 9px 12px;
 }
 .task-tools input {
@@ -632,10 +624,9 @@ kbd {
 }
 .task-card {
   display: block;
-  padding: 18px 20px;
+  padding: 24px 0;
   color: var(--ink);
   text-decoration: none;
-  border-radius: 7px;
 }
 .task-card:hover {
   background: var(--head);
@@ -654,8 +645,8 @@ kbd {
 }
 .task-heading h2 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 21px;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 .task-meta {
@@ -721,20 +712,18 @@ kbd {
   padding: 5px;
   max-width: calc(100vw - 24px);
   background: var(--bar);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
+  border-block: 1px solid var(--line);
 }
 .actions button {
   border: 0;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 9px 14px;
   font-size: 14px;
   white-space: nowrap;
 }
 .actions button:not(:disabled):hover {
-  background: var(--frame);
+  background: var(--head);
 }
 .actions .nav {
   font-size: 20px;
@@ -742,23 +731,14 @@ kbd {
   padding: 6px 12px;
   color: var(--muted);
 }
-.actions .nav kbd {
-  vertical-align: 3px;
-}
-.actions kbd.lead {
-  margin: 0 6px 0 0;
-}
 .actions .accept {
   color: var(--accept);
-  font-weight: 600;
 }
 .actions .reject {
   color: var(--reject);
-  font-weight: 600;
 }
 .actions .comment {
   color: var(--comment);
-  font-weight: 600;
 }
 .actions .skip {
   font-weight: 600;
@@ -767,7 +747,6 @@ kbd {
   font-size: 13px;
   color: var(--muted);
   border-left: 1px solid var(--line);
-  border-radius: 0 8px 8px 0;
   margin-left: 4px;
 }
 .actions .working {
@@ -787,7 +766,7 @@ kbd {
   white-space: nowrap;
 }
 
-/* A floating pill in the current change's header, which stays in view while the change is taller than the window. */
+/* Keep the current change's tools visible while reading a long passage. */
 .change.current > .change-head {
   position: sticky;
   top: calc(-1 * var(--paper-top));
@@ -797,27 +776,21 @@ kbd {
   display: flex;
   align-items: center;
   flex: none;
-  margin: -9px 0;
-  animation: float-in 0.18s ease-out;
+  margin: 0;
 }
 .change-head .actions {
   position: static;
   transform: none;
   max-width: none;
-  padding: 3px;
+  padding: 0;
   gap: 0;
   background: var(--bar);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.08),
-    0 6px 20px rgb(0 0 0 / 0.12);
+  border: 0;
 }
 .change-head .actions button {
-  padding: 4px 10px;
+  padding: 4px 8px;
   font-size: 13px;
   line-height: 1.5;
-  border-radius: 7px;
 }
 .change-head .actions .nav {
   font-size: 17px;
@@ -835,12 +808,6 @@ kbd {
 .change-head .complete {
   padding: 0 8px;
   font-size: 12px;
-}
-@keyframes float-in {
-  from {
-    opacity: 0;
-    transform: translateY(3px) scale(0.98);
-  }
 }
 .change-head .composer {
   position: absolute;
@@ -860,16 +827,15 @@ kbd {
   z-index: 5;
   width: min(540px, calc(100vw - 24px));
   padding: 12px;
-  border-radius: 12px;
   background: var(--bar);
   border: 1px solid var(--line);
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.08);
 }
 .composer label {
   display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--comment);
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--ink);
   margin-bottom: 6px;
 }
 .composer textarea {
@@ -878,7 +844,6 @@ kbd {
   min-height: 84px;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 7px;
   background: var(--paper);
   color: #1f2328;
 }
@@ -897,27 +862,26 @@ kbd {
   margin-left: 0;
 }
 .composer button {
-  border: 0;
-  border-radius: 7px;
+  border: 1px solid var(--line);
+  border-radius: 0;
   padding: 6px 16px;
-  background: var(--comment);
-  color: #fff;
-  font-weight: 600;
+  background: var(--paper);
+  color: var(--ink);
 }
 
 .toast {
   position: fixed;
-  top: 60px;
+  top: 74px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 6;
   max-width: min(640px, calc(100vw - 24px));
   padding: 9px 14px;
-  border-radius: 8px;
-  background: #26302c;
-  color: #fff;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
   font-size: 13px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 0.06);
   white-space: pre-wrap;
 }
 .toast.error {
@@ -926,18 +890,16 @@ kbd {
 
 dialog {
   border: 1px solid var(--line);
-  border-radius: 12px;
   padding: 20px 24px;
   background: var(--bar);
   color: var(--ink);
-  box-shadow: var(--shadow);
   max-width: min(460px, calc(100vw - 32px));
 }
 dialog::backdrop {
   background: rgb(0 0 0 / 0.25);
 }
 dialog h2 {
-  font-size: 16px;
+  font-size: 23px;
   margin: 0 0 12px;
 }
 dialog dl {
@@ -959,30 +921,43 @@ dialog dd {
 dialog form {
   text-align: right;
 }
-dialog form button {
+dialog button {
   border: 1px solid var(--line);
   background: var(--frame);
-  border-radius: 7px;
+  border-radius: 0;
   padding: 5px 14px;
 }
 
 @media (max-width: 720px) {
   .bar {
-    flex-wrap: wrap;
-    gap: 6px 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    padding: 12px 16px;
   }
   .identity {
-    flex-basis: 100%;
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .bar .meter {
+    justify-self: center;
+    font-size: 11px;
+  }
+  .bar-end {
+    gap: 2px;
+  }
+  .bar .ghost {
+    padding: 4px 2px;
+    font-size: 12px;
+  }
+  .side {
+    min-height: 20px;
   }
   .track {
     width: 70px;
   }
   .actions button {
     padding: 9px 9px;
-  }
-  .actions kbd,
-  #note-button {
-    display: none;
   }
   .change-head {
     flex-wrap: wrap;
@@ -1003,10 +978,7 @@ dialog form button {
   #paper {
     padding: var(--paper-top) 6px 90px;
   }
-  .overview-link + .identity {
-    flex-basis: auto;
-  }
-  .index #paper {
+  #paper.index {
     padding: 10px 14px 40px;
   }
   .overview-heading {

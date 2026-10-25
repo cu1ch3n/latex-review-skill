@@ -42,7 +42,6 @@ const PHASE: Record<string, string> = {
   render: "Rendering the diff",
 };
 type Composer = {
-  mode: "comment" | "note";
   changes: string[];
   stop: number;
   key: string;
@@ -226,19 +225,11 @@ export function ReviewApp({
     const timer = setTimeout(() => setToast(""), 6000);
     return () => clearTimeout(timer);
   }, [toast]);
-  function beginComposer(
-    mode: Composer["mode"],
-    changes = pendingUnits(stops[current], decisions),
-  ) {
-    if (
-      (mode === "comment" && (!latest || !changes.length)) ||
-      busy ||
-      state?.closed
-    )
-      return;
-    const key = `latex-review:${task}:draft:${mode === "note" ? "note" : `${detail?.round}:${changes.join(",")}`}`;
+  function beginComposer(changes = pendingUnits(stops[current], decisions)) {
+    if (!latest || !changes.length || busy || state?.closed) return;
+    const key = `latex-review:${task}:draft:${detail?.round}:${changes.join(",")}`;
     setDraft(readStorage(key, ""));
-    setComposer({ mode, changes, stop: current, key });
+    setComposer({ changes, stop: current, key });
   }
   function closeComposer(sent = false) {
     if (composer) store(composer.key, sent ? "" : draft);
@@ -302,24 +293,7 @@ export function ReviewApp({
   }
   async function submitComposer() {
     if (!composer || !draft.trim() || busy) return;
-    if (composer.mode === "comment") {
-      await decide("comment", composer.changes, draft.trim());
-      return;
-    }
-    epoch.current++;
-    setBusy(true);
-    snapshot.current.busy = true;
-    try {
-      setState(await api<PageState>("/note", { body: draft.trim() }));
-      closeComposer(true);
-      setToast("Message sent to the agent.");
-    } catch (e) {
-      setToast((e as Error).message);
-    } finally {
-      epoch.current++;
-      setBusy(false);
-      snapshot.current.busy = false;
-    }
+    await decide("comment", composer.changes, draft.trim());
   }
   function toggleSource(index: number) {
     setOpenSource((previous) => {
@@ -400,20 +374,18 @@ export function ReviewApp({
           "n",
           "s",
           "u",
-          "m",
           "?",
         ].includes(key)
       )
         event.preventDefault();
       if (key === "a") void decide("accept");
       else if (key === "r") void decide("reject");
-      else if (key === "c") beginComposer("comment");
+      else if (key === "c") beginComposer();
       else if (key === "j" || key === "arrowright") select(current + 1);
       else if (key === "k" || key === "arrowleft") select(current - 1);
       else if (key === "n") select(nextPending(stops, decisions, current));
       else if (key === "s") toggleSource(current);
       else if (key === "u") void undo();
-      else if (key === "m") beginComposer("note");
       else if (key === "?") setHelp(true);
     };
     window.addEventListener("keydown", listener);
@@ -451,10 +423,12 @@ export function ReviewApp({
           <button
             className="nav"
             aria-label="Previous change"
+            aria-keyshortcuts="k ArrowLeft"
+            title="Previous change (K or ←)"
             disabled={index === 0}
             onClick={() => select(index - 1)}
           >
-            ‹<kbd>K</kbd>
+            ‹
           </button>
           <span className="position">
             {index + 1} / {stops.length}
@@ -465,25 +439,27 @@ export function ReviewApp({
                 <button
                   className={kind}
                   key={kind}
+                  aria-keyshortcuts={kind[0]}
+                  title={`${kind[0].toUpperCase() + kind.slice(1)} (${kind[0].toUpperCase()})`}
                   disabled={busy || !latest}
                   onClick={() =>
-                    kind === "comment" ? beginComposer(kind) : void decide(kind)
+                    kind === "comment" ? beginComposer() : void decide(kind)
                   }
                 >
                   {kind[0].toUpperCase() + kind.slice(1)}
                   {pending.length > 1 && kind !== "comment"
                     ? ` (${pending.length})`
                     : ""}
-                  <kbd>{kind[0].toUpperCase()}</kbd>
                 </button>
               ))}
             </>
           ) : remaining >= 0 ? (
             <button
               className="skip"
+              aria-keyshortcuts="n"
               onClick={() => select(nextPending(stops, decisions, current))}
             >
-              Next undecided<kbd>N</kbd>
+              Next undecided
             </button>
           ) : (
             <span className="complete">
@@ -493,10 +469,12 @@ export function ReviewApp({
           <button
             className="nav"
             aria-label="Next change"
+            aria-keyshortcuts="j ArrowRight"
+            title="Next change (J or →)"
             disabled={index === stops.length - 1}
             onClick={() => select(index + 1)}
           >
-            <kbd>J</kbd>›
+            ›
           </button>
           <button
             className="undo"
@@ -526,7 +504,13 @@ export function ReviewApp({
           block.units.map((id) => state?.comments[id]).filter(Boolean),
         ),
       ],
-      location = describeLocation(known);
+      location = describeLocation(known),
+      kindLabel = block.reflow
+        ? "Reflow"
+        : [...new Set(known.map((u) => u.visual ?? "unmapped"))]
+            .filter((kind) => kind !== "text")
+            .map((kind) => KIND[kind])
+            .join(", ");
     const images = (items: Strip[], side: "before" | "after") => (
       <div
         className={`side ${side}${block.identical ? " identical" : ""}`}
@@ -561,13 +545,7 @@ export function ReviewApp({
             {location}
           </span>
           {actionBar(index)}
-          <span className="change-kind">
-            {block.reflow
-              ? "Reflow"
-              : [
-                  ...new Set(known.map((u) => KIND[u.visual ?? "unmapped"])),
-                ].join(", ")}
-          </span>
+          {kindLabel && <span className="change-kind">{kindLabel}</span>}
           {status !== "pending" && (
             <span className="badge">
               {status[0].toUpperCase() + status.slice(1)}
@@ -656,7 +634,7 @@ export function ReviewApp({
                               disabled={busy || !latest}
                               onClick={() =>
                                 kind === "comment"
-                                  ? beginComposer(kind, [unit.id])
+                                  ? beginComposer([unit.id])
                                   : void decide(kind, [unit.id])
                               }
                             >
@@ -700,7 +678,7 @@ export function ReviewApp({
           ← All reviews
         </a>
         <div className="identity">
-          <strong>{state?.title ?? "LaTeX Review"}</strong>
+          <h1>{state?.title ?? "LaTeX Review"}</h1>
           <span className="muted">
             {detail
               ? `Round ${detail.round}${detail.round !== state?.latest ? " (earlier round)" : ""}`
@@ -711,9 +689,6 @@ export function ReviewApp({
           <div className="meter">
             <span>
               {count.decided} of {count.total} decided
-            </span>
-            <span className="track">
-              <i style={{ width: `${(100 * count.decided) / count.total}%` }} />
             </span>
           </div>
         )}
@@ -735,23 +710,20 @@ export function ReviewApp({
               Accept all ({count.pending})
             </button>
           )}
-          <span
-            className="status"
-            role="status"
-            data-state={!online ? "offline" : state?.state}
-          >
-            {!online
-              ? "Reconnecting…"
-              : state?.closed
-                ? "Finished"
-                : state?.state === "building"
-                  ? jobText(state.job)
-                  : STATUS[state?.state ?? ""]}
-          </span>
-          {state && !state.closed && (
-            <button className="ghost" onClick={() => beginComposer("note")}>
-              Message agent
-            </button>
+          {(!online || state?.closed || state?.state !== "reviewing") && (
+            <span
+              className="status"
+              role="status"
+              data-state={!online ? "offline" : state?.state}
+            >
+              {!online
+                ? "Reconnecting…"
+                : state?.closed
+                  ? "Finished"
+                  : state?.state === "building"
+                    ? jobText(state.job)
+                    : STATUS[state?.state ?? ""]}
+            </span>
           )}
           <button
             className="ghost round"
@@ -887,9 +859,7 @@ export function ReviewApp({
           }}
         >
           <label htmlFor="composer-text">
-            {composer.mode === "note"
-              ? "Message the agent"
-              : `Comment on change ${composer.stop + 1} — the agent will revise it`}
+            Comment on change {composer.stop + 1}
           </label>
           <textarea
             id="composer-text"
@@ -901,11 +871,7 @@ export function ReviewApp({
               setDraft(e.target.value);
               store(composer.key, e.target.value);
             }}
-            placeholder={
-              composer.mode === "note"
-                ? "Anything the agent should know or do next…"
-                : "What should the agent change here?"
-            }
+            placeholder="What should the agent change here?"
           />
           <div className="composer-row">
             <span className="muted">⌘↵ send · Esc cancel</span>
@@ -940,7 +906,6 @@ export function ReviewApp({
                 ["N", "Next undecided"],
                 ["S", "Show LaTeX source"],
                 ["⌘Z / U", "Undo"],
-                ["M", "Message the agent"],
                 ["⌘C / Ctrl+C", "Copy selected PDF text"],
               ].map(([key, label]) => (
                 <Fragment key={key}>

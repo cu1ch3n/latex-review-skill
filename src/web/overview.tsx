@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import type { Summary } from "../types.ts";
 export const STATUS: Record<string, string> = {
-  editing: "Waiting for the agent",
-  reviewing: "Your turn",
-  revise: "The agent will revise",
+  editing: "Editing",
+  reviewing: "In review",
+  revise: "Awaiting revision",
   done: "All decided",
-  build_failed: "Last publish failed",
-  building: "Publishing a round",
+  build_failed: "Publish failed",
+  building: "Publishing",
 };
 export function Overview() {
   const [tasks, setTasks] = useState<(Summary & { url: string })[]>([]),
@@ -45,16 +45,15 @@ export function Overview() {
   return (
     <>
       <header className="bar">
-        <strong>LaTeX Review</strong>
+        <a className="brand" href="/">
+          LaTeX Review
+        </a>
         <span className="status">{tasks.length} open reviews</span>
       </header>
       <main id="paper" className="index">
         <div className="document">
           <div className="overview-heading">
             <h1>All reviews</h1>
-            <p className="muted">
-              Pick a task to review its changes or inspect earlier decisions.
-            </p>
           </div>
           <div className="task-tools">
             <input

@@ -1,0 +1,20 @@
+This package contains slight extensions of the GUST TeXGyrePagella fonts, adding a full set of superior figures and letters. The newly generated type1 fonts are:
+
+zplr.pfb
+zplri.pfb
+zplb.pfb
+zplbi.pfb
+
+from which all the newpxtext font metrics were derived. In addition, 6 glyphs from TeXGyrePagellaMath-Regular.otf were used to make two type1 fonts:
+
+zplx-regular.pfb
+zplx-bold.pfb
+
+and these were used as ingredients in newpxmath.
+
+Starting with version 1.24, the package also supplies the extended fonts in otf format:
+
+TeXGyrePagellaX-Regular.otf
+TeXGyrePagellaX-Bold.otf
+TeXGyrePagellaX-Italic.otf
+TeXGyrePagellaX-BoldItalic.otf

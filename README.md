@@ -79,7 +79,7 @@ See the [configuration reference](docs/reference.md#configuration) for engine se
 
 1. **Inspect the proposal.** Read the PDF preview and switch to the LaTeX source diff when needed. Select text to copy it, or use **Copy reference** to include its location.
 2. **Make decisions.** Accept a change to merge it into your manuscript, reject it to revert it in the agent's worktree, or comment to request a revision. **Accept all** applies every pending change in the current round as one batch; existing comments and rejections are preserved. One undo reverses the batch.
-3. **Continue with the agent.** While the agent is waiting with `feedback --wait`, completing the round or using **Message the agent** returns feedback automatically. Keep the agent session running: this mechanism cannot wake an ended session.
+3. **Continue with the agent.** While the agent is waiting with `feedback --wait`, completing the round returns your decisions and comments automatically. Keep the agent session running: this mechanism cannot wake an ended session.
 4. **Review the next round.** Revisions appear with the comments they address. Undecided changes carry forward. The review remains available after completion; ask the agent to close it when you no longer need the previews or undo.
 
 You can also tell the agent to **“accept all”**. It uses the CLI to apply the batch directly, without opening a browser or clicking through changes.
@@ -94,7 +94,6 @@ You can also tell the agent to **“accept all”**. It uses the CLI to apply th
 | Next / previous change    | `J` / `K` or `→` / `←` |
 | Next pending change       | `N`                    |
 | Toggle LaTeX source       | `S`                    |
-| Message the agent         | `M`                    |
 | Undo                      | `U`, `⌘Z`, or `Ctrl+Z` |
 | Show shortcuts            | `?`                    |
 
@@ -152,4 +151,4 @@ PDF text copying follows the document's extraction order; it does not reconstruc
 
 ## License
 
-The project source is available under the [MIT License](LICENSE). The external regression corpus is covered by its [upstream license and attribution](docs/corpus.md).
+The project source is available under the [MIT License](LICENSE). Bundled fonts retain their [upstream licenses](src/web/fonts/README.md). The external regression corpus is covered by its [upstream license and attribution](docs/corpus.md).
