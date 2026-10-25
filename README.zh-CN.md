@@ -13,6 +13,8 @@ LaTeX Review Skill 将编程 agent 的编辑流程与本地 PDF 审阅页面连�
 
 ![演示：agent 提出 LaTeX 修改，用户在 PDF 中逐项审阅、接受或评论](docs/demo.gif)
 
+[观看视频](docs/demo.mp4) · 约 19 秒的无声操作演示。
+
 [快速开始](#快速开始) · [审阅流程](#审阅流程) · [Agent 接口](#agent-接口) · [开发与测试](#开发与测试)
 
 ## 功能

@@ -13,6 +13,8 @@ LaTeX Review Skill connects a coding agent's editing workflow to a local PDF rev
 
 ![Demo: an agent proposes LaTeX edits, and the user reviews the PDF and accepts or comments on each change](docs/demo.gif)
 
+[Watch the video](docs/demo.mp4) · Silent, 19-second walkthrough.
+
 [Getting started](#getting-started) · [Review workflow](#review-workflow) · [Agent interface](#agent-interface) · [Development](#development)
 
 ## Features

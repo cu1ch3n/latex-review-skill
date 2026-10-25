@@ -1,27 +1,33 @@
 # README animation
 
-A 10-second, silent, infinitely looping Remotion demo for the repository's
-README. It shows only operations: type a request, open the PDF review, accept an
-edit, and leave a comment. No promotional headlines, subtitles, or title cards.
-The opening shows the typeset System F proof in a PDF, with the request entered
-directly below the selected passage. The same proof then appears in the PDF review.
-The paper is an original, illustrative System F manuscript with syntax,
-inference rules, type substitution, and a preservation proof. The first edit
-restores the type argument's well-formedness premise in T-TApp; the second
-over-shortens a proof, prompting the comment “Keep the substitution step.”
-Surrounding paragraphs, rule numbers, lemmas, and page headers remain visible.
-The review UI and paper are recreated with HTML and KaTeX; this is an animation,
-not a screen recording. Timing is compressed, not a claim about compilation or
-agent latency.
+An 18.8-second, silent Remotion animation for the repository's README. The GIF
+loops continuously; the MP4 preserves smoother cursor and scrolling motion.
+Both exports use the review interface's white surfaces, TeX Gyre Pagella
+headings, sans-serif controls, colored diffs, rounded toolbars, and change map.
 
-Background references for the standard calculus:
-[PLS Lab: System F](https://www.pls-lab.org/System_F) and
-[UT Austin: Polymorphism and System F](https://www.cs.utexas.edu/~bornholt/courses/cs345h-22au/lectures/8-system-f/).
-The demonstration prose and edits are original, not excerpts from those notes.
+## Walkthrough
+
+1. Ask the agent to review the type-safety proof in an illustrative manuscript.
+2. Inspect a missing well-formedness premise in T-TApp and accept the correction.
+3. Follow the document and minimap to a shortened proof; comment “Keep the substitution step.”
+4. Accept the five remaining proposals as a batch, completing the round.
+5. Inspect the revised proof with its comment history, then accept the final revision.
+
+The scene shows the round completing before the agent returns a revision, in
+line with the CLI feedback workflow. Typography, surrounding paragraphs,
+equation numbers, and source locations remain visible throughout. Motion uses
+short dissolves, a continuous document scroll, and measured cursor paths anchored
+to the rendered controls. There are no promotional headings, subtitles, or title cards.
+
+This is an HTML/KaTeX reconstruction of the interface, not a screen recording.
+Timing is compressed and does not represent compilation or agent latency. The
+System F manuscript and its edits are original examples, not changes to a user's
+paper. Background references are [PLS Lab: System F](https://www.pls-lab.org/System_F)
+and [UT Austin: Polymorphism and System F](https://www.cs.utexas.edu/~bornholt/courses/cs345h-22au/lectures/8-system-f/).
 
 ## Preview and export
 
-Requires Node.js 20+ and FFmpeg on your PATH.
+Requires Node.js 22.22+ and FFmpeg on `PATH`.
 
 ```sh
 cd promo
@@ -29,37 +35,45 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Remotion Studio. To regenerate the checked-in GIF:
+Open the local URL printed by Remotion Studio. To export:
 
 ```sh
 npm run check
+npm run stills
 npm run render
 ```
 
-The composition uses a 1200 × 675 layout at 24 fps. Export renders every second
-frame directly to lossless PNG at 1.6× scale, producing a 1920 × 1080 GIF at
-12 fps with 256 colors and infinite looping. The GIF is encoded from those PNGs,
-with no video compression or downscaling in between, so small text and math stay
-sharp. A separate `out/promo.mp4` is also saved at 1920 × 1080, 12 fps.
-The GIF is written to `../docs/demo.gif`; temporary PNGs are removed after export.
-The local video and dependencies are ignored by Git. Fonts are bundled through npm; no
-remote assets are requested during rendering. Remotion downloads a rendering
-browser on first use. To use an existing browser, set
-`REMOTION_BROWSER_EXECUTABLE` to its executable path.
+| Artifact          | Output                                                 |
+| ----------------- | ------------------------------------------------------ |
+| README GIF        | `../docs/demo.gif`, 1920 × 1080, 15 fps, infinite loop |
+| Video             | `../docs/demo.mp4`, 1920 × 1080, 30 fps, H.264         |
+| Inspection frames | `out/stills/`, 1920 × 1080 PNGs                        |
 
-`npm run stills` exports representative 1920 × 1080 frames to `out/stills/` for visual review.
-The animation uses frame-derived motion, so stills, Studio and exports agree.
+The composition is 1200 × 675 at 30 fps, with 564 frames. Rendering uses a 1.6×
+scale and lossless PNG intermediates. The GIF is encoded directly from those
+frames with a 256-color palette; the video is encoded separately. Temporary
+frames are removed after a successful export.
 
-## Edit
+To inspect selected frames:
 
-- `src/Promo.tsx`: copy, scene timing, cursor paths, and component animations.
-- `src/PLPaper.tsx`: the PL manuscript, inference rules, and proof variants.
-- `src/style.css`: colors, type sizes, and layout.
-- `src/Root.tsx`: video dimensions, frame rate, and duration.
-- `scripts/render.mjs`: GIF resolution, frame rate, palette, and dithering.
+```sh
+node scripts/stills.mjs 138 310 468
+```
 
-The three scenes start at frames 0, 60, and 144. The last 10 frames fade back
-to the opening state. Keep the demo text and buttons consistent with the actual
-review app when updating the animation.
+Fonts are local: the serif family comes from `../src/web/fonts/`, Inter from
+its npm package, and mathematical glyphs from KaTeX. The font notices remain
+with their respective distributions. Remotion downloads a rendering browser on
+first use; set `REMOTION_BROWSER_EXECUTABLE` to use an existing browser instead.
 
-Rendering follows the [Remotion CLI](https://www.remotion.dev/docs/render).
+## Editing
+
+- `src/Promo.tsx`: scene timing, workflow, cursor anchors, and minimap motion.
+- `src/PLPaper.tsx`: manuscript, inference rules, and proof variants.
+- `src/style.css`: typography, colors, and composition layout.
+- `src/Root.tsx`: composition dimensions and frame rate.
+- `scripts/render.mjs`: GIF and video encoding.
+
+Animation is derived entirely from the frame number, including cursor clicks
+and text entry. Keep labels, counts, review decisions, and revision timing
+consistent with the actual app. Inspect key frames and the completed loop after
+changing layout or timing.
