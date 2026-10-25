@@ -14,6 +14,9 @@
   color-scheme: light;
   --serif:
     "Review Serif", Palatino, "Palatino Linotype", "Songti SC", Georgia, serif;
+  --sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans",
+    sans-serif;
   --frame: #fff;
   --bar: #fff;
   --ink: #171717;
@@ -24,13 +27,14 @@
   --accept: #1d7448;
   --reject: #b0313b;
   --comment: #356aa0;
-  --before: #fff;
+  --before: #fbeeee;
   --before-edge: #d17c82;
-  --after: #fff;
+  --after: #eef8f1;
   --after-edge: #68ab82;
   --head: #fafafa;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 18px rgb(0 0 0 / 0.05);
   --paper-top: 24px;
-  font: 15px/1.5 var(--serif);
+  font: 14px/1.5 var(--sans);
   color: var(--ink);
   background: var(--frame);
 }
@@ -170,6 +174,9 @@ kbd {
 }
 .status {
   font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--head);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -178,20 +185,24 @@ kbd {
   color: var(--reject);
 }
 .ghost {
-  border: 0;
+  border: 1px solid transparent;
   background: transparent;
-  border-radius: 0;
+  border-radius: 7px;
   padding: 5px 9px;
   font-size: 13px;
   color: var(--muted);
 }
 .ghost:hover {
+  border-color: var(--line);
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }
 .accept-all {
   color: var(--ink);
+  border-color: var(--line);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.05);
 }
 .overview-link {
   flex: none;
@@ -202,6 +213,8 @@ kbd {
   width: 30px;
   height: 30px;
   padding: 0;
+  border-radius: 50%;
+  border-color: var(--line);
 }
 
 /* Document */
@@ -238,6 +251,8 @@ kbd {
 }
 .sheet {
   background: var(--paper);
+  box-shadow: var(--shadow);
+  border-radius: 3px;
   padding: 10px 0;
 }
 .context,
@@ -274,6 +289,8 @@ kbd {
 }
 .change.standalone {
   background: var(--paper);
+  box-shadow: var(--shadow);
+  border-radius: 3px;
   margin-bottom: 26px;
 }
 .change.inline {
@@ -286,7 +303,7 @@ kbd {
   padding: 8px 12px;
   font-size: 12px;
   line-height: 1.6;
-  background: var(--paper);
+  background: var(--head);
   color: var(--muted);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -355,7 +372,7 @@ kbd {
   position: absolute;
   top: 4px;
   right: 8px;
-  font: 11px/1 var(--serif);
+  font: 10px/1 var(--sans);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--before-edge);
@@ -381,10 +398,11 @@ kbd {
 }
 
 .change.current {
+  box-shadow: 0 0 0 2px var(--accent);
   z-index: 1;
 }
 .change.current .change-head {
-  border-top-color: #999;
+  background: color-mix(in srgb, var(--accent) 8%, var(--head));
   color: var(--ink);
 }
 .change[data-state="accepted"] .badge {
@@ -416,7 +434,7 @@ kbd {
   line-height: 1.55;
 }
 .remark {
-  background: var(--paper);
+  background: color-mix(in srgb, var(--comment) 8%, #fff);
   border-top: 1px solid var(--line);
   color: var(--ink);
 }
@@ -426,7 +444,7 @@ kbd {
   white-space: pre-wrap;
 }
 .histories {
-  background: var(--paper);
+  background: #f6f7fb;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
 }
@@ -456,7 +474,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 2px;
-  font: 13px var(--serif);
+  font: 13px var(--sans);
 }
 .unit-actions button {
   border: 1px solid var(--line);
@@ -494,6 +512,7 @@ kbd {
   padding: 10px 12px;
   background: #fff;
   border: 1px solid var(--line);
+  border-radius: 5px;
   font:
     12.5px/1.65 ui-monospace,
     SFMono-Regular,
@@ -523,8 +542,9 @@ kbd {
   margin: 0 auto 14px;
   padding: 10px 14px;
   font-size: 13px;
-  background: var(--paper);
-  border-block: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 .banner p {
   margin: 3px 0;
@@ -577,7 +597,9 @@ kbd {
   padding: 0;
   margin: 0;
   background: var(--bar);
-  border-block: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
 }
 .task-list li + li {
   border-top: 1px solid var(--line);
@@ -612,7 +634,7 @@ kbd {
   color: var(--ink);
   background: var(--bar);
   border: 1px solid var(--line);
-  border-radius: 0;
+  border-radius: 7px;
   padding: 9px 12px;
 }
 .task-tools input {
@@ -624,7 +646,8 @@ kbd {
 }
 .task-card {
   display: block;
-  padding: 24px 0;
+  padding: 24px 20px;
+  border-radius: 7px;
   color: var(--ink);
   text-decoration: none;
 }
@@ -712,12 +735,14 @@ kbd {
   padding: 5px;
   max-width: calc(100vw - 24px);
   background: var(--bar);
-  border-block: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
 }
 .actions button {
   border: 0;
   background: transparent;
-  border-radius: 0;
+  border-radius: 8px;
   padding: 9px 14px;
   font-size: 14px;
   white-space: nowrap;
@@ -747,6 +772,7 @@ kbd {
   font-size: 13px;
   color: var(--muted);
   border-left: 1px solid var(--line);
+  border-radius: 0 8px 8px 0;
   margin-left: 4px;
 }
 .actions .working {
@@ -782,10 +808,14 @@ kbd {
   position: static;
   transform: none;
   max-width: none;
-  padding: 0;
+  padding: 3px;
   gap: 0;
   background: var(--bar);
-  border: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.08),
+    0 6px 20px rgb(0 0 0 / 0.12);
 }
 .change-head .actions button {
   padding: 4px 8px;
@@ -829,6 +859,7 @@ kbd {
   padding: 12px;
   background: var(--bar);
   border: 1px solid var(--line);
+  border-radius: 12px;
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.08);
 }
 .composer label {
@@ -844,6 +875,7 @@ kbd {
   min-height: 84px;
   padding: 8px 10px;
   border: 1px solid var(--line);
+  border-radius: 7px;
   background: var(--paper);
   color: #1f2328;
 }
@@ -863,7 +895,7 @@ kbd {
 }
 .composer button {
   border: 1px solid var(--line);
-  border-radius: 0;
+  border-radius: 7px;
   padding: 6px 16px;
   background: var(--paper);
   color: var(--ink);
@@ -890,6 +922,8 @@ kbd {
 
 dialog {
   border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
   padding: 20px 24px;
   background: var(--bar);
   color: var(--ink);
@@ -924,7 +958,7 @@ dialog form {
 dialog button {
   border: 1px solid var(--line);
   background: var(--frame);
-  border-radius: 0;
+  border-radius: 7px;
   padding: 5px 14px;
 }
 
@@ -1017,6 +1051,124 @@ body {
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
+}
+.review-body {
+  position: relative;
+  min-height: 0;
+}
+.review-body > #paper {
+  height: 100%;
+  padding-right: 54px;
+  scrollbar-gutter: stable;
+}
+.change-map {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  bottom: 12px;
+  width: 22px;
+  z-index: 5;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fafafa;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.05);
+  touch-action: none;
+  user-select: none;
+}
+.change-map-viewport {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border: 1px solid #c6c9cc;
+  border-radius: 5px;
+  background: rgb(106 111 116 / 0.11);
+  cursor: grab;
+}
+.change-map-viewport:active {
+  cursor: grabbing;
+}
+.change-map-mark {
+  --mark: #b18a3c;
+  position: absolute;
+  left: 5px;
+  width: calc(100% - 10px);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--mark);
+}
+.change-map-mark[data-state="accepted"] {
+  --mark: var(--accept);
+}
+.change-map-mark[data-state="rejected"] {
+  --mark: var(--reject);
+}
+.change-map-mark[data-state="commented"] {
+  --mark: var(--comment);
+}
+.change-map-mark[data-state="mixed"] {
+  --mark: #796195;
+}
+.change-map-mark[aria-current] {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.change-map-mark:hover,
+.change-map-mark:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.change-map-tooltip {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 0;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 64px));
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font: 12px/1.5 var(--sans);
+  text-align: left;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  visibility: hidden;
+}
+.change-map-mark:hover .change-map-tooltip,
+.change-map-mark:focus-visible .change-map-tooltip {
+  visibility: visible;
+}
+@media (max-width: 720px) {
+  .review-body > #paper {
+    padding-right: 46px;
+  }
+  .change-map {
+    right: 16px;
+    width: 18px;
+  }
+  .change-map-mark {
+    left: 3px;
+    width: calc(100% - 6px);
+  }
+  .change-head .actions {
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .change-head .actions button {
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+  .change-head .actions .nav {
+    padding: 2px 6px;
+  }
+  .change-head .position {
+    min-width: 32px;
+  }
 }
 .pdf-strip {
   position: relative;

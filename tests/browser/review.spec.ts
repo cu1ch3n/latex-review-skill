@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import type { Feedback } from "../../src/types.ts";
 test.beforeEach(async ({ page }) => {
   await page.goto("/?task=tighten-design");
@@ -70,9 +70,27 @@ test("mouse drag selects visible PDF glyphs at desktop and narrow widths", async
       .locator(".change .pdf-text-line")
       .filter({ hasText: "rope" })
       .first();
-    await line.scrollIntoViewIfNeeded();
-    const glyphs = line.locator(".pdf-glyph"),
-      first = await glyphs.first().boundingBox(),
+    const glyphs = line.locator(".pdf-glyph");
+    // The line wrapper has no layout box; its glyphs are absolutely positioned.
+    // Center the actual text so a sticky change toolbar cannot cover it.
+    await glyphs
+      .first()
+      .evaluate((glyph) =>
+        glyph.scrollIntoView({ block: "center", behavior: "instant" }),
+      );
+    await expect
+      .poll(() =>
+        glyphs.first().evaluate((glyph) => {
+          const box = glyph.getBoundingClientRect();
+          return (
+            document
+              .elementFromPoint(box.left + 1, box.top + box.height / 2)
+              ?.closest(".pdf-glyph") === glyph
+          );
+        }),
+      )
+      .toBe(true);
+    const first = await glyphs.first().boundingBox(),
       last = await glyphs.last().boundingBox();
     expect(first).not.toBeNull();
     expect(last).not.toBeNull();
@@ -140,6 +158,10 @@ test("Accept all acts once for the full round and one undo restores every change
     .click();
   await expect(page.getByText("7 of 7 decided", { exact: true })).toBeVisible();
   await expect(page.locator('.change[data-state="pending"]')).toHaveCount(0);
+  await expect(
+    page.locator('.change-map-mark[data-state="pending"]'),
+  ).toHaveCount(0);
+  await expectMapAligned(page);
   await page.keyboard.press(
     process.platform === "darwin" ? "Meta+z" : "Control+z",
   );
@@ -147,6 +169,10 @@ test("Accept all acts once for the full round and one undo restores every change
   await expect(
     page.getByRole("button", { name: "Accept all (7)", exact: true }),
   ).toBeEnabled();
+  await expect(
+    page.locator('.change-map-mark[data-state="accepted"]'),
+  ).toHaveCount(0);
+  await expectMapAligned(page);
 });
 
 test("comments retain drafts and reach agent feedback with their source location", async ({
@@ -166,6 +192,9 @@ test("comments retain drafts and reach agent feedback with their source location
   ).toHaveValue(comment);
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator('.change[data-state="commented"]')).toHaveCount(1);
+  await expect(
+    page.locator('.change-map-mark[data-state="commented"]'),
+  ).toHaveCount(1);
   const response = await page.request.get(
     "/api/tasks/tighten-design/feedback?after=0",
   );
@@ -219,4 +248,139 @@ test("review controls and overview remain usable on narrow screens", async ({
   await page.screenshot({ path: ".cache/browser-overview-390.png" });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: ".cache/browser-overview-1440.png" });
+});
+
+async function expectMapAligned(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const root = document.querySelector<HTMLElement>("#paper")!,
+          track = document.querySelector<HTMLElement>(".change-map")!,
+          articles = [...root.querySelectorAll<HTMLElement>("[data-stop]")],
+          marks = [...track.querySelectorAll<HTMLElement>(".change-map-mark")];
+        if (marks.length !== articles.length) return Infinity;
+        return Math.max(
+          ...marks.map((mark, index) => {
+            const documentPosition =
+              (articles[index].getBoundingClientRect().top -
+                root.getBoundingClientRect().top +
+                root.scrollTop) /
+              root.scrollHeight;
+            const mapPosition =
+              (mark.getBoundingClientRect().top -
+                track.getBoundingClientRect().top -
+                track.clientTop) /
+              track.clientHeight;
+            return (
+              Math.abs(documentPosition - mapPosition) * track.clientHeight
+            );
+          }),
+        );
+      }),
+    )
+    .toBeLessThan(2);
+}
+
+test("change map navigates with pointer and keyboard and follows review layout changes", async ({
+  page,
+}) => {
+  const map = page.getByRole("navigation", { name: "Change map" }),
+    marks = map.getByRole("button"),
+    changes = page.locator(".change");
+  await expect(marks).toHaveCount(await changes.count());
+  await expectMapAligned(page);
+  const last = (await marks.count()) - 1;
+  await marks.last().click();
+  await expect(page.locator(".change.current")).toHaveAttribute(
+    "data-stop",
+    String(last),
+  );
+  await expect(marks.last()).toHaveAttribute("aria-current", "location");
+  await expect(changes.last()).toBeInViewport();
+  await marks.first().focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(marks.nth(1)).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".change.current")).toHaveAttribute(
+    "data-stop",
+    "1",
+  );
+
+  await marks.first().click();
+  await changes
+    .first()
+    .getByRole("button", { name: "LaTeX", exact: true })
+    .click();
+  await expect(changes.first().locator(".source")).toBeVisible();
+  await expectMapAligned(page);
+  await changes
+    .first()
+    .getByRole("button", { name: "Accept", exact: true })
+    .click();
+  await expect(marks.first()).toHaveAttribute("data-state", "accepted");
+  await expect(marks.first()).toHaveAccessibleName(
+    /Change 1 · accepted · paper\/sections\/design.tex/,
+  );
+  await expectMapAligned(page);
+  await page.keyboard.press(
+    process.platform === "darwin" ? "Meta+z" : "Control+z",
+  );
+  await expect(marks.first()).toHaveAttribute("data-state", "pending");
+  await expectMapAligned(page);
+
+  for (const width of [780, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(map).toBeInViewport();
+    await expectMapAligned(page);
+  }
+  // A publishing notice moves existing content without resizing the document.
+  await page.route("**/api/tasks/tighten-design/state*", async (route) => {
+    const response = await route.fetch(),
+      state = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...state,
+        state: "building",
+        job: { status: "running", phase: "render" },
+      },
+    });
+  });
+  await expect(
+    page.getByText(/The agent is publishing a new round/),
+  ).toBeVisible();
+  await expectMapAligned(page);
+});
+
+test("change map viewport follows scrolling and can be dragged", async ({
+  page,
+}) => {
+  const track = page.locator(".change-map"),
+    thumb = page.locator(".change-map-viewport"),
+    root = page.locator("#paper");
+  await expectMapAligned(page);
+  const rail = (await track.boundingBox())!,
+    viewport = (await thumb.boundingBox())!;
+  await page.mouse.move(rail.x + 2, viewport.y + viewport.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rail.x + 2, rail.y + rail.height * 0.8, { steps: 20 });
+  await page.mouse.up();
+  await expect
+    .poll(() =>
+      root.evaluate((el) => el.scrollTop / (el.scrollHeight - el.clientHeight)),
+    )
+    .toBeGreaterThan(0.6);
+  await expect
+    .poll(() =>
+      thumb.evaluate((el) => parseFloat((el as HTMLElement).style.top)),
+    )
+    .toBeGreaterThan(rail.height * 0.5);
+  await root.evaluate((el) => el.scrollTo({ top: 0, behavior: "instant" }));
+  await expect
+    .poll(() =>
+      thumb.evaluate((el) => parseFloat((el as HTMLElement).style.top)),
+    )
+    .toBe(0);
+  await expectMapAligned(page);
+  await page.screenshot({ path: ".cache/browser-change-map.png" });
 });

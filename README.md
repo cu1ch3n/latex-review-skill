@@ -86,6 +86,8 @@ You can also tell the agent to **“accept all”**. It uses the CLI to apply th
 
 **All reviews** opens the task overview for the current repository. Search by title or task name, filter tasks awaiting review, and see each task's latest round and decision counts.
 
+The **change map** beside the scrollbar shows where edits occur and outlines the visible portion of the document. Click a marker to jump to its change, or drag the viewport indicator to scroll. Markers show pending changes in amber, accepted changes in green, rejected changes in red, and comments in blue; hover or focus a marker for its status and source location. Positions update when the layout changes.
+
 ### Keyboard shortcuts
 
 | Action                    | Shortcut               |

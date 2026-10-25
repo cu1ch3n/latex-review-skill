@@ -16,6 +16,7 @@ import type {
   VisualUnit,
 } from "../types.ts";
 import { PdfStrip } from "./PdfStrip.tsx";
+import { ChangeMap } from "./ChangeMap.tsx";
 import { STATUS } from "./overview.tsx";
 import {
   buildStops,
@@ -95,6 +96,15 @@ export function ReviewApp({
       [detail],
     ),
     stops = useMemo(() => (detail ? buildStops(detail) : []), [detail]),
+    locations = useMemo(
+      () =>
+        stops.map((stop) =>
+          describeLocation(
+            stop.units.map((id) => units.get(id)!).filter(Boolean),
+          ),
+        ),
+      [stops, units],
+    ),
     decisions = state?.decisions ?? {},
     count = progress(decisions),
     latest = Boolean(
@@ -734,122 +744,133 @@ export function ReviewApp({
           </button>
         </div>
       </header>
-      <main id="paper" ref={paper} tabIndex={-1} onScroll={onScroll}>
-        {state?.closed && (
-          <div className="banner">
-            This review is finished. Accepted changes are in your manuscript.
-          </div>
-        )}
-        {state?.state === "build_failed" && (
-          <div className="banner">
-            <strong>The latest publish failed: </strong>
-            {state.job?.error}
-            {state.job?.details && (
-              <pre className="details">{state.job.details.join("\n")}</pre>
+      <div className="review-body">
+        <main id="paper" ref={paper} tabIndex={-1} onScroll={onScroll}>
+          {state?.closed && (
+            <div className="banner">
+              This review is finished. Accepted changes are in your manuscript.
+            </div>
+          )}
+          {state?.state === "build_failed" && (
+            <div className="banner">
+              <strong>The latest publish failed: </strong>
+              {state.job?.error}
+              {state.job?.details && (
+                <pre className="details">{state.job.details.join("\n")}</pre>
+              )}
+            </div>
+          )}
+          {state?.state === "building" && detail && (
+            <div className="banner">
+              The agent is publishing a new round. You can keep reviewing; the
+              new round will include your decisions.
+            </div>
+          )}
+          {detail && state?.latest && detail.round !== state.latest && (
+            <div className="banner">
+              You are viewing round {detail.round}.{" "}
+              <a href={`?task=${encodeURIComponent(task)}`}>
+                Go to round {state.latest} →
+              </a>
+            </div>
+          )}
+          {detail?.warnings.length ? (
+            <div className="banner">
+              <details>
+                <summary>{detail.warnings.length} new LaTeX warnings</summary>
+                <pre className="details">{detail.warnings.join("\n")}</pre>
+              </details>
+            </div>
+          ) : null}
+          {detail &&
+            count.total > 0 &&
+            !count.pending &&
+            state?.state !== "building" && (
+              <div className="banner">
+                Round {detail.round} is reviewed:{" "}
+                {(["accepted", "rejected", "commented"] as const)
+                  .filter((k) => count[k])
+                  .map((k) => `${count[k]} ${k}`)
+                  .join(", ")}
+                .{" "}
+                {count.commented
+                  ? "The agent will revise your comments."
+                  : "The review remains available for inspection and undo."}
+              </div>
+            )}
+          <div className="document">
+            {detail ? (
+              <>
+                {detail.sections.map((section) => (
+                  <section className="part" key={section.node}>
+                    <h2 className="part-title">
+                      <span className="number">{section.number}</span>
+                      {section.title}
+                    </h2>
+                    <div className="sheet">
+                      {section.blocks.map((block, b) =>
+                        block.kind === "context" ? (
+                          <div className="context" key={`context-${b}`}>
+                            <PdfStrip
+                              image={block.image}
+                              base={detail.files}
+                              label="Unchanged text"
+                            />
+                          </div>
+                        ) : block.kind === "gap" ? (
+                          <div
+                            className="fold"
+                            key={`gap-${b}`}
+                            title="Unchanged text is folded"
+                          >
+                            ⋯
+                          </div>
+                        ) : (
+                          change(block, index++, true)
+                        ),
+                      )}
+                    </div>
+                  </section>
+                ))}
+                {detail.loose.length > 0 && (
+                  <section className="part">
+                    <h2 className="part-title">
+                      {detail.sections.length ? "Other changes" : "Changes"}
+                    </h2>
+                    {detail.loose.map((block) => change(block, index++, false))}
+                  </section>
+                )}
+                {!stops.length && (
+                  <p className="empty">This round has no changes.</p>
+                )}
+              </>
+            ) : error ? (
+              <p className="empty" role="alert">
+                {error}
+              </p>
+            ) : (
+              <div className="waiting">
+                <div className="pulse" />
+                <p>
+                  {state?.state === "building"
+                    ? jobText(state.job)
+                    : "Waiting for the agent to publish its changes."}
+                </p>
+                <p className="muted">This page updates by itself.</p>
+              </div>
             )}
           </div>
-        )}
-        {state?.state === "building" && detail && (
-          <div className="banner">
-            The agent is publishing a new round. You can keep reviewing; the new
-            round will include your decisions.
-          </div>
-        )}
-        {detail && state?.latest && detail.round !== state.latest && (
-          <div className="banner">
-            You are viewing round {detail.round}.{" "}
-            <a href={`?task=${encodeURIComponent(task)}`}>
-              Go to round {state.latest} →
-            </a>
-          </div>
-        )}
-        {detail?.warnings.length ? (
-          <div className="banner">
-            <details>
-              <summary>{detail.warnings.length} new LaTeX warnings</summary>
-              <pre className="details">{detail.warnings.join("\n")}</pre>
-            </details>
-          </div>
-        ) : null}
-        {detail &&
-          count.total > 0 &&
-          !count.pending &&
-          state?.state !== "building" && (
-            <div className="banner">
-              Round {detail.round} is reviewed:{" "}
-              {(["accepted", "rejected", "commented"] as const)
-                .filter((k) => count[k])
-                .map((k) => `${count[k]} ${k}`)
-                .join(", ")}
-              .{" "}
-              {count.commented
-                ? "The agent will revise your comments."
-                : "The review remains available for inspection and undo."}
-            </div>
-          )}
-        <div className="document">
-          {detail ? (
-            <>
-              {detail.sections.map((section) => (
-                <section className="part" key={section.node}>
-                  <h2 className="part-title">
-                    <span className="number">{section.number}</span>
-                    {section.title}
-                  </h2>
-                  <div className="sheet">
-                    {section.blocks.map((block, b) =>
-                      block.kind === "context" ? (
-                        <div className="context" key={`context-${b}`}>
-                          <PdfStrip
-                            image={block.image}
-                            base={detail.files}
-                            label="Unchanged text"
-                          />
-                        </div>
-                      ) : block.kind === "gap" ? (
-                        <div
-                          className="fold"
-                          key={`gap-${b}`}
-                          title="Unchanged text is folded"
-                        >
-                          ⋯
-                        </div>
-                      ) : (
-                        change(block, index++, true)
-                      ),
-                    )}
-                  </div>
-                </section>
-              ))}
-              {detail.loose.length > 0 && (
-                <section className="part">
-                  <h2 className="part-title">
-                    {detail.sections.length ? "Other changes" : "Changes"}
-                  </h2>
-                  {detail.loose.map((block) => change(block, index++, false))}
-                </section>
-              )}
-              {!stops.length && (
-                <p className="empty">This round has no changes.</p>
-              )}
-            </>
-          ) : error ? (
-            <p className="empty" role="alert">
-              {error}
-            </p>
-          ) : (
-            <div className="waiting">
-              <div className="pulse" />
-              <p>
-                {state?.state === "building"
-                  ? jobText(state.job)
-                  : "Waiting for the agent to publish its changes."}
-              </p>
-              <p className="muted">This page updates by itself.</p>
-            </div>
-          )}
-        </div>
-      </main>
+        </main>
+        <ChangeMap
+          scrollRoot={paper}
+          stops={stops}
+          locations={locations}
+          decisions={decisions}
+          current={current}
+          disabled={Boolean(composer)}
+          onSelect={select}
+        />
+      </div>
       {composer && (
         <form
           className="composer"
