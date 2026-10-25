@@ -1,0 +1,49 @@
+{
+  "name": "latex-review-skill",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "bin": {
+    "latex-review": "scripts/review.mjs"
+  },
+  "scripts": {
+    "review": "tsx src/cli.ts",
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test && npm run build",
+    "demo": "tsx examples/demo.ts",
+    "test:browser": "playwright test",
+    "test:corpus": "tsx scripts/validate-corpus.ts",
+    "fixture:prepare": "tsx scripts/prepare-fixture.ts",
+    "format": "prettier --write src tests scripts examples/demo.ts *.ts *.json"
+  },
+  "dependencies": {
+    "@fastify/compress": "^9.2.2",
+    "@fastify/static": "^10.1.7",
+    "commander": "^15.0.0",
+    "diff": "^9.0.0",
+    "fastify": "^5.12.7",
+    "mupdf": "^1.28.1",
+    "proper-lockfile": "^4.1.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^22.20.5",
+    "@types/proper-lockfile": "^4.1.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

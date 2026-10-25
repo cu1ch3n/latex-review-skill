@@ -7,18 +7,19 @@ description: Use when editing a LaTeX document whose edits the user should appro
 
 The user reviews every edit before it reaches the manuscript. You edit in a private worktree. `publish` renders a PDF diff. The user decides per change in the browser, and `feedback` tells you what to do next.
 
-`REVIEW` below means `python3 <this skill's folder>/scripts/review.py`. Every command prints one JSON object, and its `next` field says what to do. Failures print `error` (plus `details` and `next`) and exit with status 1.
+`REVIEW` below means `node <this skill's folder>/scripts/review.mjs`. Every command prints one JSON object, and its `next` field says what to do. Failures print `error` (plus `details` and `next`) and exit with status 1.
 
 ## Agent interface
 
 Use the CLI for the manuscript review workflow. The returned `url`, review page and task overview are for the user. Do not use computer use or browser automation (including Playwright, screenshots or DOM inspection) to verify publication, monitor progress or read feedback. A successful `publish` response confirms publication; use `status` for task state, `feedback` for decisions and comments, and `list` for the task overview. Share the URL and continue through the CLI.
 
-Browser interaction is appropriate when the user explicitly requests it or the task is to develop or debug the review web interface itself. If the user only asks to open a review page, use `start --open` or `publish --open`; no UI automation is needed. Leave review decisions to the user unless they explicitly delegate them.
+Browser interaction is appropriate when the user explicitly requests it or the task is to develop or debug the review web interface itself. If the user only asks to open a review page, use `start --open` or `publish --open`; no UI automation is needed. Leave review decisions to the user unless they explicitly delegate them. When the user says “accept all” / “全部接受”, run `REVIEW accept --all` directly; do not open the browser or click through changes. This accepts the current round’s pending changes as one batch. Use `REVIEW undo` if the user asks to undo that batch.
 
 ## First use and demo
 
+- Setup requires Node.js 22.22 or newer. In the skill folder, run `npm ci` and `npm run build` once after installation or an update.
 - Before the first task, run `REVIEW doctor`. If a check fails, give the user its `hint` and stop.
-- If the user wants to try the skill or see a demo, run `python3 <this skill's folder>/examples/demo.py --no-open` and give them the URL it prints. Omit `--no-open` if they ask to open it. It needs no document of theirs.
+- If the user wants to try the skill or see a demo, run `npm --prefix <this skill's folder> run demo -- --no-open` and give them the URL it prints. Omit `--no-open` if they ask to open it. It needs no document of theirs.
 
 ## The loop
 
@@ -37,10 +38,10 @@ Browser interaction is appropriate when the user explicitly requests it or the t
    - If the command tool returns a running session, wait on that session. Use a long-lived command session when available. If the tool requires a bounded command, use `REVIEW feedback --wait 60` and handle each response as below before waiting again.
    - A timeout or `viewing: false` does not mean the user is done or wants to pause. Stop waiting if the user asks to pause, or report an actual tool/session limit if it prevents waiting. This workflow relies on the active agent turn; a detached command cannot wake an ended conversation.
 5. **Read any `note` items first**, regardless of `state`: they are direct messages from the user and may ask you to pause or change direction. Then act on `state`:
-   - `revise`: handle every `comment` item, including comments received in earlier feedback responses for this round. Each has `changes[]` with `file`, `lines` and `old`/`new` text, plus the user's `text`. Edit the worktree, then publish again. Rejected changes are already reverted in your worktree, so do not re-propose them unless a comment asks. An item with `not_reverted` lists files you must revert by hand.
+   - `revise`: handle every `comment` item, including comments received in earlier feedback responses for this round. Each has `changes[]` with `file`, `lines` and `old`/`new` text, plus the user's full `text`. If context or earlier responses are missing, run `REVIEW feedback --all` to replay all feedback without advancing the cursor. This includes previous rounds; ignore opinions explicitly undone by the user. Edit the worktree, then publish again. Rejected changes are already reverted in your worktree, so do not re-propose them unless a comment asks. An item with `not_reverted` lists files you must revert by hand.
    - `reviewing` or `building`: keep waiting with `REVIEW feedback --wait`.
    - `done`: report completion with the review URL. Leave the task open so the user can inspect the result and undo decisions.
-   - `build_failed`: fix the reported error and publish again.
+   - `build_failed`: read `build_error.error`, `build_error.details` and `build_error.log` in the feedback response, fix the error, and publish again.
 6. **Clean up when requested**: run `REVIEW finish` when the user asks to close or clean up the review. It removes the worktree and PDF review artifacts and ends undo. Accepted changes remain in the user's working tree, uncommitted.
 
 ## What the user's decisions mean
